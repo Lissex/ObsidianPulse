@@ -35,7 +35,7 @@ export class VaultScopeSettingTab extends PluginSettingTab {
     const hero = containerEl.createDiv({ cls: "vp-settings-hero" });
     const heroCopy = createDiv({ cls: "vp-settings-hero-copy" });
     hero.appendChild(heroCopy);
-    heroCopy.createEl("span", { text: "VAULTSCOPE · CONTROL CENTER", cls: "vp-settings-eyebrow" });
+    heroCopy.appendChild(createSpan({ text: "VAULTSCOPE · CONTROL CENTER", cls: "vp-settings-eyebrow" }));
     new Setting(heroCopy).setName("Настройте своё пространство").setHeading();
     heroCopy.createEl("p", { text: "Тихий порядок в заметках начинается с удобных инструментов. Выберите оформление и настройте рабочий процесс под себя." });
     this.renderThemePicker(hero);

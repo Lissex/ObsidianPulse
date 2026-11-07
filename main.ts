@@ -88,9 +88,9 @@ export default class VaultScopePlugin extends Plugin {
         await this.ensureParentFolder(this.learningDataPath);
         file = await this.app.vault.create(this.learningDataPath, legacyContent);
         this.learningCourses = normalizeLearningCourses(parsed);
-        await this.app.vault.delete(legacyFile);
+        await this.app.fileManager.trashFile(legacyFile);
         const legacyFolder = this.app.vault.getAbstractFileByPath("Vault Pulse");
-        if (legacyFolder instanceof TFolder && legacyFolder.children.length === 0) await this.app.vault.delete(legacyFolder);
+        if (legacyFolder instanceof TFolder && legacyFolder.children.length === 0) await this.app.fileManager.trashFile(legacyFolder);
       } catch {
         new Notice("Не удалось перенести старые данные обучения в папку VaultScope. Исходный файл сохранён.");
         this.learningCourses = [];

@@ -153,9 +153,9 @@ export class StatsService {
         if (!folder) await this.app.vault.createFolder(DATA_FOLDER);
         else if (!(folder instanceof TFolder)) throw new Error(`Путь ${DATA_FOLDER} занят файлом.`);
         file = await this.app.vault.create(DATA_PATH, rawContent);
-        await this.app.vault.delete(legacyFile);
+        await this.app.fileManager.trashFile(legacyFile);
         const legacyFolder = this.app.vault.getAbstractFileByPath("Vault Pulse");
-        if (legacyFolder instanceof TFolder && legacyFolder.children.length === 0) await this.app.vault.delete(legacyFolder);
+        if (legacyFolder instanceof TFolder && legacyFolder.children.length === 0) await this.app.fileManager.trashFile(legacyFolder);
       }
     }
     if (file instanceof TFile) {
