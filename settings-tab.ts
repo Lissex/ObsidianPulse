@@ -28,17 +28,13 @@ export class VaultPulseSettingTab extends PluginSettingTab {
     }];
   }
 
-  display(): void {
-    this.renderSettings(this.containerEl);
-  }
-
   private renderSettings(containerEl: HTMLElement): void {
     containerEl.empty();
 
     const hero = containerEl.createDiv({ cls: "vp-settings-hero" });
     const heroCopy = hero.createDiv({ cls: "vp-settings-hero-copy" });
     heroCopy.createEl("span", { text: "VAULTSCOPE · CONTROL CENTER", cls: "vp-settings-eyebrow" });
-    heroCopy.createEl("h2", { text: "Настройте своё пространство" });
+    new Setting(heroCopy).setName("Настройте своё пространство").setHeading();
     heroCopy.createEl("p", { text: "Тихий порядок в заметках начинается с удобных инструментов. Выберите оформление и настройте рабочий процесс под себя." });
     this.renderThemePicker(hero);
 

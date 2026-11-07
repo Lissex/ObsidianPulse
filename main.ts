@@ -135,7 +135,11 @@ export default class VaultPulsePlugin extends Plugin {
       const range = getDateRange(this.settings.period, new Date(), this.settings.weekStartsMonday);
       const token = this.settings.githubSecretId ? this.app.secretStorage.getSecret(this.settings.githubSecretId) : null;
       const results: GitHubCommit[][] = await Promise.all(repos.map((repo) => fetchRepositoryCommits(repo, range.start, range.end, token)));
-      this.githubCommits = results.flatMap((commits) => commits).sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+      const commits: GitHubCommit[] = [];
+      for (const repositoryCommits of results) {
+        for (const commit of repositoryCommits) commits.push(commit);
+      }
+      this.githubCommits = commits.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
       this.githubStatus = `Обновлено: ${new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date())}. Коммитов: ${this.githubCommits.length}.`;
     } catch (error: unknown) {
       this.githubStatus = error instanceof Error ? error.message : "Не удалось получить данные GitHub.";

@@ -73,7 +73,11 @@ export class DashboardView extends ItemView {
     const snapshot = this.plugin.stats?.getSnapshot();
     const notes = (snapshot?.notes ?? []).filter((note) => this.isIncluded(note));
     const folders = [...new Set(notes.map((note) => note.folder))].sort((a, b) => a.localeCompare(b));
-    const tags = [...new Set(notes.flatMap((note) => note.tags))].sort((a, b) => a.localeCompare(b));
+    const tagSet = new Set<string>();
+    for (const note of notes) {
+      for (const tag of note.tags) tagSet.add(tag);
+    }
+    const tags = [...tagSet].sort((a, b) => a.localeCompare(b));
     if (!folders.includes(this.selectedFolder)) this.selectedFolder = "*";
     if (!tags.includes(this.selectedTag)) this.selectedTag = "*";
     const filteredNotes = notes.filter((note) => this.matchesSelectedFilters(note));
