@@ -262,7 +262,9 @@ export default class VaultPulsePlugin extends Plugin {
     const file = this.app.vault.getAbstractFileByPath(this.learningDataPath);
     if (!(file instanceof TFile)) { this.learningCourses = []; return; }
     try {
-      this.learningCourses = normalizeLearningCourses(JSON.parse(await this.app.vault.read(file)));
+      const content = await this.app.vault.read(file);
+      const parsed: unknown = JSON.parse(content);
+      this.learningCourses = normalizeLearningCourses(parsed);
     } catch {
       new Notice("Не удалось прочитать Vault Pulse/learning.json. Файл оставлен без изменений.");
       this.learningCourses = [];
@@ -313,7 +315,7 @@ export default class VaultPulsePlugin extends Plugin {
     this.refreshDashboards();
     try {
       const range = getDateRange(this.settings.period, new Date(), this.settings.weekStartsMonday);
-      const token = this.settings.githubSecretId ? this.app.secretStorage.getSecret(this.settings.githubSecretId) : null;
+      const token: string | null = this.settings.githubSecretId ? this.app.secretStorage.getSecret(this.settings.githubSecretId) as string | null : null;
       const results = await Promise.all(repos.map((repo) => fetchRepositoryCommits(repo, range.start, range.end, token)));
       this.githubCommits = results.flat().sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
       this.githubStatus = `Обновлено: ${new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date())}. Коммитов: ${this.githubCommits.length}.`;
@@ -792,7 +794,7 @@ class DashboardView extends ItemView {
     statusSelect.createEl("option", { text: "Любой статус", value: "all" });
     for (const [value, label] of Object.entries(statusNames)) statusSelect.createEl("option", { text: label, value });
     statusSelect.value = this.learningStatusFilter;
-    statusSelect.addEventListener("change", () => { this.learningStatusFilter = statusSelect.value as typeof this.learningStatusFilter; this.render(); });
+    statusSelect.addEventListener("change", () => { this.learningStatusFilter = statusSelect.value as "all" | "active" | "paused" | "completed"; this.render(); });
     const courses = visibleCourses.filter((course) => (this.learningPlatformFilter === "all" || course.platform === this.learningPlatformFilter)
       && (this.learningStatusFilter === "all" || course.status === this.learningStatusFilter));
     if (!courses.length) {
@@ -1339,7 +1341,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
         if (!enabled) this.plugin.settings.dailyBlocks = this.plugin.settings.dailyBlocks.filter((id) => id !== blockId);
         else this.plugin.settings.dailyBlocks.push(blockId);
         await this.plugin.saveSettings();
-        this.display();
+        this.update();
       }));
       setting.addExtraButton((button) => button.setIcon("arrow-up").setTooltip("Переместить выше")
         .setDisabled(index === 0).onClick(async () => { await this.moveDailyBlock(index, -1); }));
@@ -1351,7 +1353,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
         .addButton((button) => button.setButtonText("Добавить").onClick(async () => {
           this.plugin.settings.dailyBlocks.push(block.id);
           await this.plugin.saveSettings();
-          this.display();
+          this.update();
         }));
     }
 
@@ -1359,7 +1361,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
     new Setting(containerEl).setName("Куда добавлять новые задачи").setDesc("Выберите дневную заметку или отдельный файл со списком задач.")
       .addDropdown((dropdown) => dropdown.addOption("daily", "В дневную заметку").addOption("file", "В отдельный файл")
         .setValue(this.plugin.settings.taskDestination)
-        .onChange(async (value) => { this.plugin.settings.taskDestination = value as TaskDestination; await this.plugin.saveSettings(); this.display(); }));
+        .onChange(async (value) => { this.plugin.settings.taskDestination = value as TaskDestination; await this.plugin.saveSettings(); this.update(); }));
     if (this.plugin.settings.taskDestination === "file") {
       new Setting(containerEl).setName("Файл списка задач").setDesc("Путь к Markdown-файлу. Если файла нет, он будет создан после добавления первой задачи.")
         .addText((text) => text.setPlaceholder("Планирование/Задачи.md").setValue(this.plugin.settings.taskFilePath)
@@ -1398,7 +1400,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
         .onChange(async (value) => { this.plugin.settings.weekStartsMonday = value === "monday"; await this.plugin.saveSettings(); }));
     new Setting(containerEl).setName("Переносить незавершённые задачи").setDesc("Показывает действие переноса из вчерашней дневной заметки в сегодняшнюю.")
       .addToggle((toggle) => toggle.setValue(this.plugin.settings.rolloverTasks)
-        .onChange(async (value) => { this.plugin.settings.rolloverTasks = value; await this.plugin.saveSettings(); this.display(); }));
+        .onChange(async (value) => { this.plugin.settings.rolloverTasks = value; await this.plugin.saveSettings(); this.update(); }));
 
     new Setting(containerEl).setName("Периодические планы").setHeading();
     containerEl.createEl("p", { text: "Шаблоны содержат Markdown-разделы и подстановки {{period}}, {{start}}, {{end}}, {{stats}}, {{tasks}}, {{notes}} и {{projects}}." });
@@ -1463,7 +1465,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
       if (this.plugin.settings.githubRepositories.includes(repo)) { new Notice("Этот репозиторий уже добавлен."); return; }
       this.plugin.settings.githubRepositories.push(repo);
       await this.plugin.saveSettings();
-      this.display();
+      this.update();
     }));
     for (const repo of this.plugin.settings.githubRepositories) {
       new Setting(containerEl).setName(repo).setDesc("Репозиторий для отображения коммитов.")
@@ -1471,7 +1473,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
           this.plugin.settings.githubRepositories = this.plugin.settings.githubRepositories.filter((item) => item !== repo);
           this.plugin.githubCommits = this.plugin.githubCommits.filter((commit) => commit.repo !== repo);
           await this.plugin.saveSettings();
-          this.display();
+          this.update();
         }));
     }
     new Setting(containerEl).setName("Токен GitHub").setDesc("Можно оставить пустым для публичных репозиториев. Создайте токен в SecretStorage; Vault Pulse не записывает секрет в настройки плагина.")
@@ -1536,7 +1538,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
     [order[index], order[target]] = [order[target], order[index]];
     this.plugin.settings.panelOrder = order;
     await this.plugin.saveSettings();
-    this.display();
+    this.update();
   }
 
   private async moveDailyBlock(index: number, direction: -1 | 1): Promise<void> {
@@ -1545,7 +1547,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
     [order[index], order[target]] = [order[target], order[index]];
     this.plugin.settings.dailyBlocks = order;
     await this.plugin.saveSettings();
-    this.display();
+    this.update();
   }
 
   private async updateWorkingHours(start: string, end: string): Promise<void> {
