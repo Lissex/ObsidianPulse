@@ -172,7 +172,6 @@ export default class VaultPulsePlugin extends Plugin {
   onunload(): void {
     if (this.githubTimer !== undefined) window.clearInterval(this.githubTimer);
     void this.stats?.flush();
-    // detachLeavesOfType removed as required by Obsidian API guidelines
   }
 
   refreshDashboards(): void {
@@ -318,7 +317,7 @@ export default class VaultPulsePlugin extends Plugin {
       const results = await Promise.all(repos.map((repo) => fetchRepositoryCommits(repo, range.start, range.end, token)));
       this.githubCommits = results.flat().sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
       this.githubStatus = `Обновлено: ${new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date())}. Коммитов: ${this.githubCommits.length}.`;
-    } catch (error) {
+    } catch (error: unknown) {
       this.githubStatus = error instanceof Error ? error.message : "Не удалось получить данные GitHub.";
     } finally {
       this.githubSyncing = false;

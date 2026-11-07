@@ -33,21 +33,25 @@ export function parseTasks(path: string, content: string): TaskRecord[] {
   for (let index = 0; index < lines.length; index++) {
     const rawLine = lines[index];
     const match = rawLine.match(/^(\s*[-*]\s+)\[([ xX])\]\s+(.*)$/);
-    if (!match) continue;
+    if (!match || match.length < 4) continue;
+    
     const body = match[3].trim();
     if (!body) continue;
-    if (!body) continue;
+    
     const dueMatch = body.match(/(?:📅|@due\()\s*(\d{4}-\d{2}-\d{2})\)?/);
     const tags = [...new Set(body.match(/#[\p{L}\p{N}_/-]+/gu) ?? [])];
     let priority: TaskPriority = "none";
+    
     for (const value of PRIORITY_ORDER) {
       if (value !== "none" && body.includes(PRIORITY_MARKERS[value])) { priority = value; break; }
     }
+    
     const text = body
       .replace(/(?:📅|@due\()\s*\d{4}-\d{2}-\d{2}\)?/g, "")
       .replace(/🔺|⏫|🔼|🔽|⏬/g, "")
       .replace(/#[\p{L}\p{N}_/-]+/gu, "")
       .replace(/\s+/g, " ").trim();
+      
     tasks.push({
       id: `${path}:${index}:${rawLine}`,
       path,
@@ -55,7 +59,7 @@ export function parseTasks(path: string, content: string): TaskRecord[] {
       rawLine,
       text,
       completed: match[2].toLowerCase() === "x",
-      due: dueMatch?.[1] ?? null,
+      due: dueMatch && dueMatch[1] ? dueMatch[1] : null,
       priority,
       tags,
     });
@@ -91,8 +95,11 @@ export class TaskService {
     const files = this.app.vault.getMarkdownFiles();
     for (let index = 0; index < files.length; index++) {
       const file = files[index];
-      try { this.byPath.set(file.path, parseTasks(file.path, await this.app.vault.cachedRead(file))); }
-      catch { this.byPath.set(file.path, []); }
+      try { 
+        this.byPath.set(file.path, parseTasks(file.path, await this.app.vault.cachedRead(file))); 
+      } catch { 
+        this.byPath.set(file.path, []); 
+      }
       if (index > 0 && index % 100 === 0) await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     }
     this.ready = true;
@@ -133,7 +140,7 @@ export class TaskService {
         return lines.join(content.includes("\r\n") ? "\r\n" : "\n");
       });
       if (stale) new Notice("Задача изменилась. Обновите список и попробуйте ещё раз.");
-    } catch (error) {
+    } catch (error: unknown) {
       new Notice(`Не удалось обновить задачу: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -187,17 +194,22 @@ export class NewTaskModal extends Modal {
     const tagsLabel = form.createEl("label", { text: "Теги" });
     const tags = tagsLabel.createEl("input", { attr: { type: "text", placeholder: "проект, работа" } });
     const preview = contentEl.createDiv({ cls: "vp-task-markdown-preview" });
-    const updatePreview = () => { preview.setText(buildTaskLine({
-      text: title.value || "Название задачи",
-      due: due.value,
-      priority: priority.value as TaskPriority,
-      tags: tags.value.split(/[\s,]+/).map((tag) => tag.replace(/^#/, "")).filter(Boolean),
-    })); };
+    
+    const updatePreview = () => { 
+      preview.setText(buildTaskLine({
+        text: title.value || "Название задачи",
+        due: due.value,
+        priority: priority.value as TaskPriority,
+        tags: tags.value.split(/[\s,]+/).map((tag) => tag.replace(/^#/, "")).filter(Boolean),
+      })); 
+    };
+    
     title.addEventListener("input", updatePreview);
     due.addEventListener("change", updatePreview);
     priority.addEventListener("change", updatePreview);
     tags.addEventListener("input", updatePreview);
     updatePreview();
+    
     const buttons = contentEl.createDiv({ cls: "modal-button-container" });
     buttons.createEl("button", { text: "Отмена" }).addEventListener("click", () => this.close());
     const save = buttons.createEl("button", { text: "Добавить задачу", cls: "mod-cta" });
@@ -237,6 +249,7 @@ export class TaskRolloverModal extends Modal {
     contentEl.createEl("p", { text: `Задачи будут перемещены из ${this.sourcePath} в ${this.targetPath}. Исходные строки удалятся только после успешного копирования.` });
     const selected = new Map<string, boolean>();
     const list = contentEl.createDiv({ cls: "vp-rollover-list" });
+    
     for (const task of this.tasks) {
       selected.set(task.id, true);
       const label = list.createEl("label", { cls: "vp-rollover-item" });
@@ -245,17 +258,21 @@ export class TaskRolloverModal extends Modal {
       checkbox.addEventListener("change", () => selected.set(task.id, checkbox.checked));
       label.createSpan({ text: task.rawLine.trim() });
     }
+    
     const buttons = contentEl.createDiv({ cls: "modal-button-container" });
     buttons.createEl("button", { text: "Отмена" }).addEventListener("click", () => this.close());
     const move = buttons.createEl("button", { text: `Перенести ${this.tasks.length} задач`, cls: "mod-cta" });
+    
     const updateMoveButton = () => {
       const count = [...selected.values()].filter(Boolean).length;
       move.textContent = `Перенести ${count} задач`;
       move.disabled = count === 0;
     };
+    
     for (const checkbox of Array.from(list.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))) {
       checkbox.addEventListener("change", updateMoveButton);
     }
+    
     move.addEventListener("click", () => {
       const tasks = this.tasks.filter((task) => selected.get(task.id));
       if (!tasks.length) return;

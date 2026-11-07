@@ -189,32 +189,59 @@ export function renderPeriodTemplate(template: string, info: PeriodInfo, events:
 }
 
 export function mergePeriodReview(existing: string, rendered: string): { content: string; added: string[] } {
-  if (!existing) return { content: `${rendered.trim()}\n`, added: [...rendered.matchAll(/^##\s+(.+?)\s*$/gm)].map((match) => match[1]) };
+  if (!existing) {
+    const initialHeadings: string[] = [];
+    const headingRegex = /^##\s+(.+?)\s*$/gm;
+    let match: RegExpExecArray | null;
+    while ((match = headingRegex.exec(rendered)) !== null) {
+      if (match[1]) initialHeadings.push(match[1]);
+    }
+    return { content: `${rendered.trim()}\n`, added: initialHeadings };
+  }
   let updated = existing;
   const changedBlocks: string[] = [];
   const blockLabels: Record<string, string> = { stats: "Факты периода", tasks: "Задачи со сроком", notes: "Заметки и проекты" };
+  
   for (const key of ["stats", "tasks", "notes"]) {
     const pattern = new RegExp(`<!-- vault-pulse:${key}:start -->([\\s\\S]*?)<!-- vault-pulse:${key}:end -->`);
     const oldBlock = pattern.exec(updated);
     const newBlock = pattern.exec(rendered);
     if (!oldBlock || !newBlock || oldBlock[1] === newBlock[1]) continue;
     updated = updated.replace(pattern, `<!-- vault-pulse:${key}:start -->${newBlock[1]}<!-- vault-pulse:${key}:end -->`);
-    changedBlocks.push(blockLabels[key]);
+    changedBlocks.push(blockLabels[key] || key);
   }
-  const existingHeadings = new Set([...updated.matchAll(/^##\s+(.+?)\s*$/gm)].map((match) => match[1].trim().toLocaleLowerCase()));
-  const headings = [...rendered.matchAll(/^##\s+(.+?)\s*$/gm)];
+  
+  const existingHeadings = new Set<string>();
+  const headingRegexCheck = /^##\s+(.+?)\s*$/gm;
+  let checkMatch: RegExpExecArray | null;
+  while ((checkMatch = headingRegexCheck.exec(updated)) !== null) {
+    if (checkMatch[1]) existingHeadings.add(checkMatch[1].trim().toLocaleLowerCase());
+  }
+
+  const headings: RegExpExecArray[] = [];
+  const headingRegexRendered = /^##\s+(.+?)\s*$/gm;
+  let renderedMatch: RegExpExecArray | null;
+  while ((renderedMatch = headingRegexRendered.exec(rendered)) !== null) {
+    headings.push(renderedMatch);
+  }
+
   if (!headings.length) return { content: updated, added: changedBlocks };
   const additions: string[] = [];
   const added: string[] = [];
+  
   for (let index = 0; index < headings.length; index++) {
     const heading = headings[index];
-    const title = heading[1].trim();
-    if (existingHeadings.has(title.toLocaleLowerCase())) continue;
-    const from = heading.index!;
-    const to = headings[index + 1]?.index ?? rendered.length;
+    const title = heading[1] ? heading[1].trim() : "";
+    if (!title || existingHeadings.has(title.toLocaleLowerCase())) continue;
+    
+    const from = heading.index;
+    const nextHeading = headings[index + 1];
+    const to = nextHeading ? nextHeading.index : rendered.length;
+    
     additions.push(rendered.slice(from, to).trim());
     added.push(title);
   }
+  
   if (!additions.length) return { content: updated, added: changedBlocks };
   const separator = updated.endsWith("\n\n") ? "" : updated.endsWith("\n") ? "\n" : "\n\n";
   return { content: `${updated}${separator}${additions.join("\n\n")}\n`, added: [...changedBlocks, ...added] };
@@ -261,7 +288,7 @@ export class PeriodPlanPreviewModal extends Modal {
       }
       this.close();
       this.onSaved(file);
-    } catch (error) {
+    } catch (error: unknown) {
       new Notice(`Не удалось сохранить план: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -272,7 +299,7 @@ async function ensureFolders(vault: Vault, path: string): Promise<void> {
   let current = "";
   for (const segment of parent.split("/").filter(Boolean)) {
     current = current ? `${current}/${segment}` : segment;
-    const existing: TAbstractFile | null = vault.getAbstractFileByPath(current);
+    const existing = vault.getAbstractFileByPath(current) as TAbstractFile | null;
     if (existing instanceof TFolder) continue;
     if (existing) throw new Error(`Папка ${current} занята файлом.`);
     await vault.createFolder(current);

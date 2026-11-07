@@ -1,8 +1,8 @@
 {
   "id": "lissex-vault-scope",
   "name": "VaultScope",
-  "version": "0.8.2",
-  "minAppVersion": "1.11.4",
+  "version": "0.8.3",
+  "minAppVersion": "1.13.0",
   "description": "A calm dashboard for notes, planning, and activity.",
   "author": "Lissex",
   "isDesktopOnly": false

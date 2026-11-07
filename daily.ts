@@ -36,11 +36,24 @@ export function buildDailyContent(
   existing = "",
 ): { content: string; appendedTitles: string[] } {
   const key = dailyDateKey(date);
-  const titles = new Map(DAILY_BLOCKS.map((block) => [block.id, block.title]));
-  const existingHeadings = new Set([...existing.matchAll(/^#{1,6}\s+(.+?)\s*#*\s*$/gm)].map((match) => match[1].trim().toLocaleLowerCase()));
-  const selected = blocks.filter((id) => titles.has(id) && !existingHeadings.has(titles.get(id)!.toLocaleLowerCase()));
+  const titles = new Map<DailyBlockId, string>(DAILY_BLOCKS.map((block) => [block.id, block.title]));
+  
+  const existingHeadings = new Set<string>();
+  const headingRegex = /^#{1,6}\s+(.+?)\s*#*\s*$/gm;
+  let headingMatch: RegExpExecArray | null;
+  while ((headingMatch = headingRegex.exec(existing)) !== null) {
+    if (headingMatch[1]) {
+      existingHeadings.add(headingMatch[1].trim().toLocaleLowerCase());
+    }
+  }
+
+  const selected = blocks.filter((id) => {
+    const title = titles.get(id);
+    return title !== undefined && !existingHeadings.has(title.toLocaleLowerCase());
+  });
+
   const sections = selected.map((id) => {
-    const title = titles.get(id)!;
+    const title = titles.get(id) || "";
     if (id === "plan") return `## ${title}\n\n- [ ] `;
     if (id === "events") return `## ${title}\n\n- `;
     if (id === "completed") return `## ${title}\n\n- [ ] `;
@@ -51,7 +64,9 @@ export function buildDailyContent(
       : "- За сегодня записей нет.";
     return `## ${title}\n\n${activity}`;
   });
-  const appendedTitles = selected.map((id) => titles.get(id)!);
+
+  const appendedTitles = selected.map((id) => titles.get(id) || "");
+  
   if (existing) {
     const addition = sections.join("\n\n").trim();
     const separator = !existing ? "" : existing.endsWith("\n\n") ? "" : existing.endsWith("\n") ? "\n" : "\n\n";
@@ -60,6 +75,7 @@ export function buildDailyContent(
       appendedTitles,
     };
   }
+  
   const frontmatter = `---\ntype: daily\ndate: ${key}\n---`;
   const heading = `# ${key}`;
   return { content: `${frontmatter}\n\n${heading}${sections.length ? `\n\n${sections.join("\n\n")}` : ""}\n`, appendedTitles };
@@ -71,19 +87,30 @@ export interface DailySummary {
 }
 
 export function parseDailySummary(content: string): DailySummary {
-  const completedTasks = [...content.matchAll(/^\s*[-*]\s+\[x\]\s+(.+?)\s*$/gim)].map((match) => match[1]);
+  const completedTasks: string[] = [];
+  const taskRegex = /^\s*[-*]\s+\[x\]\s+(.+?)\s*$/gim;
+  let taskMatch: RegExpExecArray | null;
+  while ((taskMatch = taskRegex.exec(content)) !== null) {
+    if (taskMatch[1]) {
+      completedTasks.push(taskMatch[1]);
+    }
+  }
+
   const lines = content.split(/\r?\n/);
   const events: string[] = [];
   let inEvents = false;
+  
   for (const line of lines) {
-    const heading = line.match(/^#{1,6}\s+(.+?)\s*#*\s*$/);
-    if (heading) {
-      inEvents = heading[1].trim().toLocaleLowerCase() === "события";
+    const headingMatch = line.match(/^#{1,6}\s+(.+?)\s*#*\s*$/);
+    if (headingMatch && headingMatch[1]) {
+      inEvents = headingMatch[1].trim().toLocaleLowerCase() === "события";
       continue;
     }
     if (!inEvents) continue;
-    const item = line.match(/^\s*[-*]\s+(.*?)\s*$/);
-    if (item?.[1]) events.push(item[1]);
+    const itemMatch = line.match(/^\s*[-*]\s+(.*?)\s*$/);
+    if (itemMatch && itemMatch[1]) {
+      events.push(itemMatch[1]);
+    }
   }
   return { completedTasks, events };
 }
@@ -148,7 +175,7 @@ export class DailyNotePreviewModal extends Modal {
       }
       this.close();
       this.onSaved(result);
-    } catch (error) {
+    } catch (error: unknown) {
       new Notice(`Не удалось сохранить дневную заметку: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -159,7 +186,7 @@ export class DailyNotePreviewModal extends Modal {
     let current = "";
     for (const segment of parent.split("/")) {
       current = current ? `${current}/${segment}` : segment;
-      const existing: TAbstractFile | null = this.vault.getAbstractFileByPath(current);
+      const existing = this.vault.getAbstractFileByPath(current) as TAbstractFile | null;
       if (existing instanceof TFolder) continue;
       if (existing) throw new Error(`Папка ${current} занята файлом.`);
       await this.vault.createFolder(current);

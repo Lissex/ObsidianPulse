@@ -60,7 +60,7 @@ export class StatsService {
       for (const work of this.pending.splice(0)) work();
       this.queueSave();
       this.onUpdate();
-    } catch (error) {
+    } catch (error: unknown) {
       this.error = error instanceof Error ? error.message : String(error);
       this.ready = true;
       this.onUpdate();
@@ -141,19 +141,29 @@ export class StatsService {
   private async load(): Promise<void> {
     const file = this.app.vault.getAbstractFileByPath(DATA_PATH);
     if (file instanceof TFile) {
-      const parsed = JSON.parse(await this.app.vault.read(file)) as Partial<StoredStats>;
+      const rawContent = await this.app.vault.read(file);
+      const parsedData: unknown = JSON.parse(rawContent);
+      
+      if (typeof parsedData !== "object" || parsedData === null) {
+        throw new Error("Файл статистики имеет неизвестный формат. Исходный файл сохранён без изменений.");
+      }
+      
+      const parsed = parsedData as Partial<StoredStats>;
       if (parsed.version !== 1 || !parsed.notes || !Array.isArray(parsed.events)) {
         throw new Error("Файл статистики имеет неизвестный формат. Исходный файл сохранён без изменений.");
       }
+      
       this.data = {
         version: 1,
         initializedAt: typeof parsed.initializedAt === "number" ? parsed.initializedAt : Date.now(),
-        notes: parsed.notes,
-        events: parsed.events,
+        notes: parsed.notes as Record<string, NoteRecord>,
+        events: parsed.events as ActivityEvent[],
       };
+      
       this.eventIds = new Set(this.data.events.map((event) => event.id));
       return;
     }
+    
     const folder = this.app.vault.getAbstractFileByPath(DATA_FOLDER);
     if (!folder) await this.app.vault.createFolder(DATA_FOLDER);
     else if (!("children" in folder)) throw new Error(`Путь ${DATA_FOLDER} занят файлом.`);
@@ -215,12 +225,18 @@ export class StatsService {
   private makeRecord(file: TFile): NoteRecord {
     const cache = this.app.metadataCache.getFileCache(file);
     const tags = new Set((cache?.tags ?? []).map((item) => item.tag));
-    const frontmatterTags = cache?.frontmatter?.tags;
+    
+    const frontmatterTags: unknown = cache?.frontmatter?.tags;
     if (typeof frontmatterTags === "string") {
-      for (const tag of frontmatterTags.split(/[ ,]+/)) if (tag.trim()) tags.add(tag.startsWith("#") ? tag : `#${tag}`);
+      for (const tag of frontmatterTags.split(/[ ,]+/)) {
+        if (tag.trim()) tags.add(tag.startsWith("#") ? tag : `#${tag}`);
+      }
     } else if (Array.isArray(frontmatterTags)) {
-      for (const tag of frontmatterTags) if (typeof tag === "string" && tag.trim()) tags.add(tag.startsWith("#") ? tag : `#${tag}`);
+      for (const tag of frontmatterTags as unknown[]) {
+        if (typeof tag === "string" && tag.trim()) tags.add(tag.startsWith("#") ? tag : `#${tag}`);
+      }
     }
+    
     const links = (cache?.links?.length ?? 0) + (cache?.embeds?.length ?? 0);
     return {
       path: file.path,
