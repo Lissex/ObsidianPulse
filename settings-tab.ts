@@ -1,13 +1,12 @@
 import { Notice, PluginSettingTab, SecretComponent, Setting, SettingDefinitionItem, setIcon } from "obsidian";
 import { DAILY_BLOCKS } from "./daily";
 import { PlanningPeriod } from "./planning";
-import { normalizeRepository } from "./github";
 import { timeToMinutes } from "./schedule";
 
-import type VaultPulsePlugin from "./main";
+import type VaultScopePlugin from "./main";
 import { PANELS, Period, Density, PanelStyle, ChartStyle, AccentPalette, TaskDestination, TaskGrouping } from "./settings-model";
-export class VaultPulseSettingTab extends PluginSettingTab {
-  constructor(app: VaultPulsePlugin["app"], private plugin: VaultPulsePlugin) { super(app, plugin); }
+export class VaultScopeSettingTab extends PluginSettingTab {
+  constructor(app: VaultScopePlugin["app"], private plugin: VaultScopePlugin) { super(app, plugin); }
 
   getSettingDefinitions(): SettingDefinitionItem[] {
     return [{
@@ -34,7 +33,8 @@ export class VaultPulseSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     const hero = containerEl.createDiv({ cls: "vp-settings-hero" });
-    const heroCopy = hero.createDiv({ cls: "vp-settings-hero-copy" });
+    const heroCopy = createDiv({ cls: "vp-settings-hero-copy" });
+    hero.appendChild(heroCopy);
     heroCopy.createEl("span", { text: "VAULTSCOPE · CONTROL CENTER", cls: "vp-settings-eyebrow" });
     new Setting(heroCopy).setName("Настройте своё пространство").setHeading();
     heroCopy.createEl("p", { text: "Тихий порядок в заметках начинается с удобных инструментов. Выберите оформление и настройте рабочий процесс под себя." });
@@ -227,34 +227,55 @@ export class VaultPulseSettingTab extends PluginSettingTab {
         .onChange(async (value) => { this.plugin.settings.learningOtherEnabled = value; await this.plugin.saveSettings(); }));
 
     new Setting(containerEl).setName("GitHub").setHeading();
-    containerEl.createEl("p", { text: "Vault Pulse запрашивает только список коммитов выбранных репозиториев. Для закрытых репозиториев используйте fine-grained token с доступом только к нужным репозиториям и Contents: read. Токен хранится через SecretStorage Obsidian, его значение не записывается в data.json." });
-    const repoInputSetting = new Setting(containerEl).setName("Добавить репозиторий").setDesc("Формат owner/repo или ссылка https://github.com/owner/repo.");
-    let repoInputValue = "";
-    repoInputSetting.addText((text) => text.setPlaceholder("owner/repo").onChange((value) => { repoInputValue = value; }));
-    repoInputSetting.addButton((button) => button.setButtonText("Добавить").onClick(async () => {
-      const repo = normalizeRepository(repoInputValue);
-      if (!repo) { new Notice("Введите адрес в формате owner/repo."); return; }
-      if (this.plugin.settings.githubRepositories.includes(repo)) { new Notice("Этот репозиторий уже добавлен."); return; }
-      this.plugin.settings.githubRepositories.push(repo);
-      await this.plugin.saveSettings();
-      this.update();
-    }));
-    for (const repo of this.plugin.settings.githubRepositories) {
-      new Setting(containerEl).setName(repo).setDesc("Репозиторий для отображения коммитов.")
-        .addButton((button) => button.setButtonText("Удалить").setDestructive().onClick(async () => {
-          this.plugin.settings.githubRepositories = this.plugin.settings.githubRepositories.filter((item) => item !== repo);
-          this.plugin.githubCommits = this.plugin.githubCommits.filter((commit) => commit.repo !== repo);
-          await this.plugin.saveSettings();
-          this.update();
-        }));
-    }
-    new Setting(containerEl).setName("Токен GitHub").setDesc("Можно оставить пустым для публичных репозиториев. Создайте токен в SecretStorage; Vault Pulse не записывает секрет в настройки плагина.")
+    containerEl.createEl("p", { text: "Подключите GitHub аккаунт один раз, затем отметьте репозитории, коммиты которых показывать. Token хранится через SecretStorage Obsidian и не попадает в настройки плагина. Fine-grained token должен иметь доступ к нужным репозиториям и Contents: read." });
+    new Setting(containerEl).setName("Personal access token").setDesc("Создайте fine-grained token в GitHub и сохраните его в защищённом хранилище Obsidian.")
       .addComponent((element) => new SecretComponent(this.app, element)
         .setValue(this.plugin.settings.githubSecretId)
         .onChange(async (value) => {
-          this.plugin.settings.githubSecretId = value ?? "";
+          const nextSecretId = value ?? "";
+          if (nextSecretId !== this.plugin.settings.githubSecretId) {
+            this.plugin.settings.githubAccount = "";
+            this.plugin.settings.githubRepositories = [];
+            this.plugin.githubAvailableRepositories = [];
+            this.plugin.githubCommits = [];
+          }
+          this.plugin.settings.githubSecretId = nextSecretId;
           await this.plugin.saveSettings();
+          this.update();
         }));
+    const connectSetting = new Setting(containerEl)
+      .setName(this.plugin.settings.githubAccount ? `GitHub аккаунт · @${this.plugin.settings.githubAccount}` : "GitHub аккаунт")
+      .setDesc("Проверить подключение и загрузить список доступных репозиториев аккаунта.");
+    connectSetting.addButton((button) => button
+      .setButtonText(this.plugin.githubSyncing ? "Подключение…" : "Подключить аккаунт")
+      .setDisabled(this.plugin.githubSyncing)
+      .onClick(async () => { await this.plugin.connectGitHubAccount(); this.update(); }));
+
+    const availableRepositories = this.plugin.githubAvailableRepositories;
+    const availableNames = new Set(availableRepositories.map((repository) => repository.fullName));
+    const repositoryNames = [...new Set([
+      ...availableRepositories.map((repository) => repository.fullName),
+      ...this.plugin.settings.githubRepositories.filter((repository) => !availableNames.has(repository)),
+    ])];
+    if (repositoryNames.length) {
+      new Setting(containerEl).setName("Репозитории для синхронизации").setHeading();
+      const repositoryList = containerEl.createDiv({ cls: "vp-github-repository-list" });
+      for (const repo of repositoryNames) {
+        const repository = availableRepositories.find((item) => item.fullName === repo);
+        new Setting(repositoryList).setName(repo)
+          .setDesc(repository ? (repository.isPrivate ? "Приватный репозиторий" : "Публичный репозиторий") : "Сохранённый репозиторий; обновите список аккаунта.")
+          .addToggle((toggle) => toggle.setValue(this.plugin.settings.githubRepositories.includes(repo))
+            .onChange(async (enabled) => {
+              const selected = new Set(this.plugin.settings.githubRepositories);
+              if (enabled) selected.add(repo); else selected.delete(repo);
+              this.plugin.settings.githubRepositories = [...selected];
+              if (!enabled) this.plugin.githubCommits = this.plugin.githubCommits.filter((commit) => commit.repo !== repo);
+              await this.plugin.saveSettings();
+            }));
+      }
+    } else {
+      containerEl.createEl("p", { text: "После подключения аккаунта здесь появятся его репозитории." });
+    }
     new Setting(containerEl).setName("Автоматическая синхронизация").setDesc("По умолчанию выключена. При включении запрашивает только список коммитов выбранных репозиториев.")
       .addDropdown((dropdown) => dropdown.addOption("0", "Только вручную").addOption("15", "Каждые 15 минут")
         .addOption("60", "Каждый час").addOption("1440", "Раз в день")

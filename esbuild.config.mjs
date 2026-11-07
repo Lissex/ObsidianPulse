@@ -4,7 +4,7 @@ import process from "process";
 const production = process.argv[2] === "production";
 
 const context = await esbuild.context({
-  banner: { js: "/* Vault Pulse | Obsidian plugin */" },
+  banner: { js: "/* VaultScope | Obsidian plugin */" },
   entryPoints: ["main.ts"],
   bundle: true,
   external: ["obsidian"],

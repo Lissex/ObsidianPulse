@@ -33,19 +33,19 @@ period: {{period}}
 ## Итоги
 
 ## Факты периода
-<!-- vault-pulse:stats:start -->
+<!-- vaultscope:stats:start -->
 {{stats}}
-<!-- vault-pulse:stats:end -->
+<!-- vaultscope:stats:end -->
 
 ## Задачи со сроком в периоде
-<!-- vault-pulse:tasks:start -->
+<!-- vaultscope:tasks:start -->
 {{tasks}}
-<!-- vault-pulse:tasks:end -->
+<!-- vaultscope:tasks:end -->
 
 ## Заметки и проекты
-<!-- vault-pulse:notes:start -->
+<!-- vaultscope:notes:start -->
 {{notes}}
-<!-- vault-pulse:notes:end -->`,
+<!-- vaultscope:notes:end -->`,
   month: `---
 type: monthly-plan
 period: {{period}}
@@ -62,19 +62,19 @@ period: {{period}}
 ## Итоги
 
 ## Факты периода
-<!-- vault-pulse:stats:start -->
+<!-- vaultscope:stats:start -->
 {{stats}}
-<!-- vault-pulse:stats:end -->
+<!-- vaultscope:stats:end -->
 
 ## Задачи со сроком в периоде
-<!-- vault-pulse:tasks:start -->
+<!-- vaultscope:tasks:start -->
 {{tasks}}
-<!-- vault-pulse:tasks:end -->
+<!-- vaultscope:tasks:end -->
 
 ## Заметки и проекты
-<!-- vault-pulse:notes:start -->
+<!-- vaultscope:notes:start -->
 {{notes}}
-<!-- vault-pulse:notes:end -->`,
+<!-- vaultscope:notes:end -->`,
   year: `---
 type: yearly-plan
 period: {{period}}
@@ -91,19 +91,19 @@ period: {{period}}
 ## Итоги года
 
 ## Факты периода
-<!-- vault-pulse:stats:start -->
+<!-- vaultscope:stats:start -->
 {{stats}}
-<!-- vault-pulse:stats:end -->
+<!-- vaultscope:stats:end -->
 
 ## Задачи со сроком в периоде
-<!-- vault-pulse:tasks:start -->
+<!-- vaultscope:tasks:start -->
 {{tasks}}
-<!-- vault-pulse:tasks:end -->
+<!-- vaultscope:tasks:end -->
 
 ## Заметки и проекты
-<!-- vault-pulse:notes:start -->
+<!-- vaultscope:notes:start -->
 {{notes}}
-<!-- vault-pulse:notes:end -->`,
+<!-- vaultscope:notes:end -->`,
 };
 
 export function getPeriodInfo(period: PlanningPeriod, date = new Date(), weekStartsMonday = true): PeriodInfo {
@@ -203,11 +203,11 @@ export function mergePeriodReview(existing: string, rendered: string): { content
   const blockLabels: Record<string, string> = { stats: "Факты периода", tasks: "Задачи со сроком", notes: "Заметки и проекты" };
   
   for (const key of ["stats", "tasks", "notes"]) {
-    const pattern = new RegExp(`<!-- vault-pulse:${key}:start -->([\\s\\S]*?)<!-- vault-pulse:${key}:end -->`);
+    const pattern = new RegExp(`<!-- (?:vaultscope|vault-pulse):${key}:start -->([\\s\\S]*?)<!-- (?:vaultscope|vault-pulse):${key}:end -->`);
     const oldBlock = pattern.exec(updated);
     const newBlock = pattern.exec(rendered);
     if (!oldBlock || !newBlock || oldBlock[1] === newBlock[1]) continue;
-    updated = updated.replace(pattern, `<!-- vault-pulse:${key}:start -->${newBlock[1]}<!-- vault-pulse:${key}:end -->`);
+    updated = updated.replace(pattern, `<!-- vaultscope:${key}:start -->${newBlock[1]}<!-- vaultscope:${key}:end -->`);
     changedBlocks.push(blockLabels[key] || key);
   }
   

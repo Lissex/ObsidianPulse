@@ -6,10 +6,10 @@ import { ScheduleEvent, eventsOverlap, parseScheduleEvents, timeToMinutes } from
 import { PlanningPeriod, buildPeriodPath, getPeriodInfo } from "./planning";
 import { DeleteLearningCourseModal, LearningCourseModal, LearningPlatform } from "./learning";
 
-import type VaultPulsePlugin from "./main";
+import type VaultScopePlugin from "./main";
 import { PANELS, PanelDefinition, PanelId, DashboardSection, Period } from "./settings-model";
 import { dateKeyForPlanning, folderOf, periodCaption, priorityLabel } from "./view-utils";
-import { renderActivityChart, renderBreakdown } from "./dashboard-charts";
+import { renderActivityChart, renderBreakdown, renderVaultHeatmap } from "./dashboard-charts";
 
 const VIEW_TYPE = "vault-pulse-dashboard";
 
@@ -29,7 +29,7 @@ export class DashboardView extends ItemView {
   private learningStatusFilter: "all" | "active" | "paused" | "completed" = "all";
   private activeSection: DashboardSection = "overview";
 
-  constructor(leaf: WorkspaceLeaf, private plugin: VaultPulsePlugin) { super(leaf); this.planningPeriod = plugin.settings.planningDefaultPeriod; }
+  constructor(leaf: WorkspaceLeaf, private plugin: VaultScopePlugin) { super(leaf); this.planningPeriod = plugin.settings.planningDefaultPeriod; }
 
   getViewType(): string { return VIEW_TYPE; }
   getDisplayText(): string { return "VaultScope"; }
@@ -118,7 +118,7 @@ export class DashboardView extends ItemView {
 
     if (this.activeSection === "overview" || this.activeSection === "day" || this.activeSection === "github") {
       const periodBar = root.createDiv({ cls: "vp-period-bar" });
-      periodBar.createEl("span", { text: "Период", cls: "vp-section-label" });
+      periodBar.appendChild(createSpan({ text: "Период", cls: "vp-section-label" }));
       const periodSwitch = periodBar.createDiv({ cls: "vp-period-switch", attr: { role: "group", "aria-label": "Период обзора" } });
       const periods: { id: Period; label: string }[] = [
         { id: "day", label: "День" }, { id: "week", label: "Неделя" },
@@ -140,7 +140,7 @@ export class DashboardView extends ItemView {
 
     if (this.activeSection === "overview" || this.activeSection === "day") {
       const filters = root.createDiv({ cls: "vp-filters" });
-      filters.createEl("span", { text: "Фильтровать", cls: "vp-section-label" });
+      filters.appendChild(createSpan({ text: "Фильтровать", cls: "vp-section-label" }));
       this.addFilter(filters, "Все папки", this.selectedFolder, folders, (value) => { this.selectedFolder = value; this.render(); });
       this.addFilter(filters, "Все теги", this.selectedTag, tags, (value) => { this.selectedTag = value; this.render(); });
     }
@@ -216,12 +216,14 @@ export class DashboardView extends ItemView {
       for (const [value, label] of metrics) {
         const stat = stats.createDiv({ cls: "vp-stat" });
         stat.createEl("strong", { text: value });
-        stat.createEl("span", { text: label });
+        stat.appendChild(createSpan({ text: label }));
       }
       card.createEl("p", { text: "Создание и изменение считаются по уникальным заметкам за день, чтобы автосохранение не раздувало показатели.", cls: "vp-helper" });
     } else if (panel.id === "activity") {
       card.createEl("p", { text: "Создание и изменения заметок по выбранному периоду.", cls: "vp-card-lead" });
       this.renderActivityChart(card, events);
+      card.createEl("h3", { text: "Стрики хранилища · 365 дней", cls: "vp-heatmap-heading" });
+      renderVaultHeatmap(card, events);
       this.renderBurstControls(card, events);
     } else if (panel.id === "folders") {
       card.createEl("p", { text: panel.description, cls: "vp-card-lead" });
@@ -256,7 +258,7 @@ export class DashboardView extends ItemView {
     sync.addEventListener("click", () => { void this.plugin.syncGitHub(); });
     const repos = this.plugin.settings.githubRepositories;
     if (!repos.length) {
-      card.createEl("p", { text: "Добавьте репозитории в настройках Vault Pulse, затем нажмите «Синхронизировать»." , cls: "vp-empty-state" });
+      card.createEl("p", { text: "Подключите GitHub аккаунт и выберите репозитории в настройках VaultScope." , cls: "vp-empty-state" });
       return;
     }
     const filters = card.createDiv({ cls: "vp-github-filters" });
@@ -273,10 +275,11 @@ export class DashboardView extends ItemView {
     const list = card.createDiv({ cls: "vp-github-list" });
     for (const commit of commits.slice(0, 50)) {
       const row = list.createDiv({ cls: "vp-github-commit" });
-      const title = row.createEl("a", { text: commit.message || "Без сообщения", href: commit.url, cls: "vp-github-message" });
+      const title = createEl("a", { text: commit.message || "Без сообщения", href: commit.url, cls: "vp-github-message" });
+      row.appendChild(title);
       title.setAttribute("target", "_blank");
       title.setAttribute("rel", "noopener noreferrer");
-      row.createEl("span", { text: `${commit.repo} · ${commit.author} · ${new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date(commit.date))}`, cls: "vp-github-meta" });
+      row.appendChild(createSpan({ text: `${commit.repo} · ${commit.author} · ${new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date(commit.date))}`, cls: "vp-github-meta" }));
     }
     if (commits.length > 50) card.createEl("p", { text: `Показаны первые 50 из ${commits.length}.`, cls: "vp-helper" });
   }
@@ -297,7 +300,7 @@ export class DashboardView extends ItemView {
     });
     card.createEl("p", { text: "Прогресс вводится вручную. Записи хранятся в этом хранилище и не отправляются платформам.", cls: "vp-card-lead" });
     if (!enabledPlatforms.length) {
-      card.createEl("p", { text: "Включите хотя бы одну платформу в настройках Vault Pulse.", cls: "vp-empty-state" });
+      card.createEl("p", { text: "Включите хотя бы одну платформу в настройках VaultScope.", cls: "vp-empty-state" });
       return;
     }
     const activeCount = visibleCourses.filter((course) => course.status === "active").length;
@@ -494,7 +497,7 @@ export class DashboardView extends ItemView {
     if (task.due) metadata.push(`Срок: ${task.due}`);
     if (task.priority !== "none") metadata.push(priorityLabel(task.priority));
     if (task.tags.length) metadata.push(task.tags.join(" "));
-    if (metadata.length) body.createEl("span", { text: metadata.join(" · "), cls: "vp-task-meta" });
+    if (metadata.length) body.appendChild(createSpan({ text: metadata.join(" · "), cls: "vp-task-meta" }));
   }
 
   private renderSchedule(card: HTMLElement): void {
@@ -607,9 +610,10 @@ export class DashboardView extends ItemView {
   }
 
   private addDailyCount(container: HTMLElement, value: string, label: string): void {
-    const item = container.createDiv({ cls: "vp-daily-count" });
-    item.createEl("strong", { text: value });
-    item.createEl("span", { text: label });
+    const item = createDiv({ cls: "vp-daily-count" });
+    container.appendChild(item);
+    item.appendChild(createEl("strong", { text: value }));
+    item.appendChild(createSpan({ text: label }));
   }
 
   private renderDailyList(card: HTMLElement, heading: string, entries: string[]): void {

@@ -4,24 +4,25 @@ import { DailyNotePreviewModal, buildDailyContent, buildDailyPath } from "./dail
 import { NewTaskData, NewTaskModal, TaskRecord, TaskService, TaskRolloverModal, buildTaskLine, parseTasks } from "./tasks";
 import { NewScheduleEvent, NewScheduleEventModal, formatScheduleLine, parseScheduleEvents, timeToMinutes } from "./schedule";
 import { PeriodPlanPreviewModal, PlanningPeriod, buildPeriodPath, getPeriodInfo, mergePeriodReview, renderPeriodTemplate } from "./planning";
-import { GitHubCommit, fetchRepositoryCommits } from "./github";
+import { GitHubCommit, GitHubRepository, fetchGitHubAccount, fetchRepositoryCommits } from "./github";
 import { LearningCourse, LearningCourseInput, normalizeLearningCourses } from "./learning";
 import { DashboardView } from "./dashboard";
-import { VaultPulseSettingTab } from "./settings-tab";
-import { DEFAULT_SETTINGS, normalizeSettings, VaultPulseSettings } from "./settings-model";
+import { VaultScopeSettingTab } from "./settings-tab";
+import { DEFAULT_SETTINGS, normalizeSettings, VaultScopeSettings } from "./settings-model";
 import { appendTaskToSection, folderOf } from "./view-utils";
 
 const VIEW_TYPE = "vault-pulse-dashboard";
 
-export default class VaultPulsePlugin extends Plugin {
-  settings: VaultPulseSettings = DEFAULT_SETTINGS;
+export default class VaultScopePlugin extends Plugin {
+  settings: VaultScopeSettings = DEFAULT_SETTINGS;
   stats?: StatsService;
   tasks?: TaskService;
   githubCommits: GitHubCommit[] = [];
+  githubAvailableRepositories: GitHubRepository[] = [];
   githubStatus = "Синхронизация ещё не запускалась.";
   githubSyncing = false;
   learningCourses: LearningCourse[] = [];
-  private learningDataPath = "Vault Pulse/learning.json";
+  private learningDataPath = "VaultScope/learning.json";
   private githubTimer?: number;
 
   async onload(): Promise<void> {
@@ -29,9 +30,9 @@ export default class VaultPulsePlugin extends Plugin {
     await this.loadLearningData();
     this.scheduleGitHubSync();
     this.registerView(VIEW_TYPE, (leaf) => new DashboardView(leaf, this));
-    this.addRibbonIcon("activity", "Открыть Vault Pulse", () => this.openDashboard());
+    this.addRibbonIcon("activity", "Открыть VaultScope", () => this.openDashboard());
     this.addCommand({ id: "open-dashboard", name: "Открыть панель", callback: () => this.openDashboard() });
-    this.addSettingTab(new VaultPulseSettingTab(this.app, this));
+    this.addSettingTab(new VaultScopeSettingTab(this.app, this));
     this.stats = new StatsService(this.app, () => this.refreshDashboards());
     this.tasks = new TaskService(this.app, () => this.refreshDashboards());
     this.app.workspace.onLayoutReady(() => {
@@ -77,14 +78,32 @@ export default class VaultPulsePlugin extends Plugin {
   }
 
   private async loadLearningData(): Promise<void> {
-    const file = this.app.vault.getAbstractFileByPath(this.learningDataPath);
+    let file = this.app.vault.getAbstractFileByPath(this.learningDataPath);
+    if (!(file instanceof TFile)) {
+      const legacyFile = this.app.vault.getAbstractFileByPath("Vault Pulse/learning.json");
+      if (!(legacyFile instanceof TFile)) { this.learningCourses = []; return; }
+      try {
+        const legacyContent = await this.app.vault.read(legacyFile);
+        const parsed: unknown = JSON.parse(legacyContent);
+        await this.ensureParentFolder(this.learningDataPath);
+        file = await this.app.vault.create(this.learningDataPath, legacyContent);
+        this.learningCourses = normalizeLearningCourses(parsed);
+        await this.app.vault.delete(legacyFile);
+        const legacyFolder = this.app.vault.getAbstractFileByPath("Vault Pulse");
+        if (legacyFolder instanceof TFolder && legacyFolder.children.length === 0) await this.app.vault.delete(legacyFolder);
+      } catch {
+        new Notice("Не удалось перенести старые данные обучения в папку VaultScope. Исходный файл сохранён.");
+        this.learningCourses = [];
+        return;
+      }
+    }
     if (!(file instanceof TFile)) { this.learningCourses = []; return; }
     try {
       const content = await this.app.vault.read(file);
       const parsed: unknown = JSON.parse(content);
       this.learningCourses = normalizeLearningCourses(parsed);
     } catch {
-      new Notice("Не удалось прочитать Vault Pulse/learning.json. Файл оставлен без изменений.");
+      new Notice("Не удалось прочитать VaultScope/learning.json. Файл оставлен без изменений.");
       this.learningCourses = [];
     }
   }
@@ -143,6 +162,30 @@ export default class VaultPulsePlugin extends Plugin {
       this.githubStatus = `Обновлено: ${new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date())}. Коммитов: ${this.githubCommits.length}.`;
     } catch (error: unknown) {
       this.githubStatus = error instanceof Error ? error.message : "Не удалось получить данные GitHub.";
+    } finally {
+      this.githubSyncing = false;
+      this.refreshDashboards();
+    }
+  }
+
+  async connectGitHubAccount(): Promise<void> {
+    const token = this.settings.githubSecretId ? this.app.secretStorage.getSecret(this.settings.githubSecretId) : null;
+    if (!token) {
+      this.githubStatus = "Сначала добавьте GitHub token в SecretStorage.";
+      this.refreshDashboards();
+      return;
+    }
+    this.githubSyncing = true;
+    this.githubStatus = "Подключаю GitHub аккаунт и загружаю доступные репозитории…";
+    this.refreshDashboards();
+    try {
+      const account = await fetchGitHubAccount(token);
+      this.settings.githubAccount = account.login;
+      this.githubAvailableRepositories = account.repositories;
+      await this.saveSettings();
+      this.githubStatus = `Аккаунт @${account.login} подключён. Доступно репозиториев: ${account.repositories.length}.`;
+    } catch (error: unknown) {
+      this.githubStatus = error instanceof Error ? error.message : "Не удалось подключить GitHub аккаунт.";
     } finally {
       this.githubSyncing = false;
       this.refreshDashboards();

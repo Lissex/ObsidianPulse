@@ -31,7 +31,7 @@ export const PANELS: PanelDefinition[] = [
   { id: "learning", title: "Обучение", description: "Курсы и прогресс обучения." },
 ];
 
-export interface VaultPulseSettings {
+export interface VaultScopeSettings {
   period: Period;
   density: Density;
   panelStyle: PanelStyle;
@@ -66,6 +66,7 @@ export interface VaultPulseSettings {
   yearlyFormat: string;
   yearlyTemplate: string;
   githubRepositories: string[];
+  githubAccount: string;
   githubSecretId: string;
   githubSyncMinutes: number;
   learningStepikEnabled: boolean;
@@ -73,7 +74,7 @@ export interface VaultPulseSettings {
   learningOtherEnabled: boolean;
 }
 
-export const DEFAULT_SETTINGS: VaultPulseSettings = {
+export const DEFAULT_SETTINGS: VaultScopeSettings = {
   period: "day",
   density: "comfortable",
   panelStyle: "mac",
@@ -108,6 +109,7 @@ export const DEFAULT_SETTINGS: VaultPulseSettings = {
   yearlyFormat: "YYYY",
   yearlyTemplate: DEFAULT_PERIOD_TEMPLATES.year,
   githubRepositories: [],
+  githubAccount: "",
   githubSecretId: "",
   githubSyncMinutes: 0,
   learningStepikEnabled: true,
@@ -119,7 +121,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function normalizeSettings(value: unknown): VaultPulseSettings {
+export function normalizeSettings(value: unknown): VaultScopeSettings {
   const input: Record<string, unknown> = isRecord(value) ? value : {};
   const validTime = (candidate: unknown): candidate is string => typeof candidate === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(candidate);
   const scheduleStart = validTime(input.scheduleStart) ? input.scheduleStart : DEFAULT_SETTINGS.scheduleStart;
@@ -176,6 +178,7 @@ export function normalizeSettings(value: unknown): VaultPulseSettings {
         .filter((repo): repo is string => typeof repo === "string")
         .map(normalizeRepository)
         .filter((repo): repo is string => repo !== null))],
+      githubAccount: typeof input.githubAccount === "string" ? input.githubAccount : "",
       githubSecretId: typeof input.githubSecretId === "string" ? input.githubSecretId : "",
       githubSyncMinutes,
       learningStepikEnabled: input.learningStepikEnabled !== false,

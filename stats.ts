@@ -1,4 +1,4 @@
-import { App, TAbstractFile, TFile } from "obsidian";
+import { App, TAbstractFile, TFile, TFolder } from "obsidian";
 
 export type StatsPeriod = "day" | "week" | "month" | "year";
 export type ActivityKind = "created" | "modified";
@@ -38,8 +38,9 @@ export interface StatsSnapshot {
   error: string | null;
 }
 
-const DATA_FOLDER = "Vault Pulse";
+const DATA_FOLDER = "VaultScope";
 const DATA_PATH = `${DATA_FOLDER}/activity.json`;
+const LEGACY_DATA_PATH = "Vault Pulse/activity.json";
 
 export class StatsService {
   private data: StoredStats = { version: 1, initializedAt: 0, notes: {}, events: [] };
@@ -139,7 +140,24 @@ export class StatsService {
   }
 
   private async load(): Promise<void> {
-    const file = this.app.vault.getAbstractFileByPath(DATA_PATH);
+    let file = this.app.vault.getAbstractFileByPath(DATA_PATH);
+    if (!(file instanceof TFile)) {
+      const legacyFile = this.app.vault.getAbstractFileByPath(LEGACY_DATA_PATH);
+      if (legacyFile instanceof TFile) {
+        const rawContent = await this.app.vault.read(legacyFile);
+        const parsedData: unknown = JSON.parse(rawContent);
+        if (!isStoredStats(parsedData)) {
+          throw new Error("Старый файл статистики имеет неизвестный формат и оставлен без изменений.");
+        }
+        const folder = this.app.vault.getAbstractFileByPath(DATA_FOLDER);
+        if (!folder) await this.app.vault.createFolder(DATA_FOLDER);
+        else if (!(folder instanceof TFolder)) throw new Error(`Путь ${DATA_FOLDER} занят файлом.`);
+        file = await this.app.vault.create(DATA_PATH, rawContent);
+        await this.app.vault.delete(legacyFile);
+        const legacyFolder = this.app.vault.getAbstractFileByPath("Vault Pulse");
+        if (legacyFolder instanceof TFolder && legacyFolder.children.length === 0) await this.app.vault.delete(legacyFolder);
+      }
+    }
     if (file instanceof TFile) {
       const rawContent = await this.app.vault.read(file);
       const parsedData: unknown = JSON.parse(rawContent);

@@ -7,7 +7,7 @@ An adaptive Obsidian dashboard for local note statistics and planning. The inter
 1. Install dependencies with `npm install`.
 2. Run `npm run dev` to watch and bundle the plugin into `main.js`.
 3. Run `npm run build` to type-check and create a production bundle.
-4. Copy `manifest.json`, `main.js`, and `styles.css` into `.obsidian/plugins/vault-pulse/` in a test vault.
+4. Copy `manifest.json`, `main.js`, and `styles.css` into `.obsidian/plugins/lissex-vault-scope/` in a test vault.
 
 ## Architecture
 
@@ -15,7 +15,7 @@ An adaptive Obsidian dashboard for local note statistics and planning. The inter
 
 ## Statistics
 
-The plugin indexes Markdown notes available through the Obsidian Vault API, including nested folders, archives, and template folders. The statistics history is stored in `Vault Pulse/activity.json` within the vault. The file can be moved and synced along with the vault.
+The plugin indexes Markdown notes available through the Obsidian Vault API, including nested folders, archives, and template folders. The statistics history is stored in `VaultScope/activity.json` within the vault. The file can be moved and synced along with the vault.
 
 Creation and modification events are grouped into a single record per note per type per day so that autosaving does not inflate the count. On first launch, the plugin uses file timestamps for the initial index. It cannot recover every edit made prior to installation or while the plugin was disabled. External synchronization may appear as a regular modification because the public Obsidian event does not report a reliable source for the operation.
 
@@ -41,17 +41,19 @@ Task migration is available for incomplete tasks from yesterday's daily note. A 
 
 ## Period Plans
 
-The "Period Plans" panel shows a summary for the current week, month, or year: note creation and modification, active notes, and tasks with a due date in the period. For each period, the folder, file name, and Markdown template are configurable. Substitutions `{{period}}`, `{{start}}`, `{{end}}`, `{{stats}}`, `{{tasks}}`, `{{notes}}`, and `{{projects}}` are available. Creating or appending a plan goes through a preview and explicit confirmation. Blocks between the `vault-pulse:stats`, `vault-pulse:tasks`, and `vault-pulse:notes` comments are updated on the next confirmed preview; manual text outside these blocks is preserved.
+The "Period Plans" panel shows a summary for the current week, month, or year: note creation and modification, active notes, and tasks with a due date in the period. For each period, the folder, file name, and Markdown template are configurable. Substitutions `{{period}}`, `{{start}}`, `{{end}}`, `{{stats}}`, `{{tasks}}`, `{{notes}}`, and `{{projects}}` are available. Creating or appending a plan goes through a preview and explicit confirmation. Blocks between the `vaultscope:stats`, `vaultscope:tasks`, and `vaultscope:notes` comments are updated on the next confirmed preview; manual text outside these blocks is preserved.
 
 Markdown tasks do not contain a standard completion date, so the number of completed tasks in the overview is counted among tasks with a due date in the selected period, rather than as an exact timeline of when they were checked off.
 
 ## GitHub
 
-In the GitHub settings, add repositories in the `owner/repo` format. The panel shows commits for the currently selected period and allows filtering them by repository and author. The request is triggered by a button; periodic synchronization can be enabled separately. Public repositories are accessible without a token. Private repositories require a fine-grained personal access token restricted to the necessary repositories and the `Contents: read` permission. The token is selected via Obsidian's SecretStorage and does not end up in the `data.json` settings. The plugin uses the commit list API without downloading file contents. Up to 50 commits are displayed, and synchronization reads a maximum of 1000 commits per repository per period.
+In the GitHub settings, select a fine-grained personal access token in Obsidian's SecretStorage and connect the GitHub account. VaultScope verifies the account and loads repositories available to that token; choose which repositories to sync with toggles. The token value is not stored in plugin settings or `data.json`. For private repositories, grant access to the required repositories and `Contents: read`. The panel shows commits for the selected period and allows filtering by repository and author. Sync is manual by default; periodic synchronization can be enabled separately. The plugin reads commit metadata only, not repository file contents. Up to 50 commits are displayed, and synchronization reads a maximum of 1000 commits per repository per period.
+
+The activity panel also includes a GitHub-style contribution heatmap for the last year. Each square represents one day of Markdown note creation or modification activity; hovering a day shows its event count. Current and longest streaks are calculated from the locally recorded activity history.
 
 ## Learning
 
-The "Learning" panel maintains a local list of courses from Stepik, Udemy, and other platforms. Add the course, link, progress, status, and next step; records are stored in `Vault Pulse/learning.json`. Tracking is manual: the [Stepik API](https://help.stepik.org/article/64188) requires OAuth access to an account for personal data, and student progress is described among the [Udemy Business APIs](https://partnersupport.udemy.com/hc/en-us/articles/17361835464087-Summary-of-Available-APIs), which are configured by the organization. The plugin does not request platform passwords or tokens and does not scan website pages. In the settings, you can hide courses from each platform; hiding does not delete records.
+The "Learning" panel maintains a local list of courses from Stepik, Udemy, and other platforms. Add the course, link, progress, status, and next step; records are stored in `VaultScope/learning.json`. Tracking is manual: the [Stepik API](https://help.stepik.org/article/64188) requires OAuth access to an account for personal data, and student progress is described among the [Udemy Business APIs](https://partnersupport.udemy.com/hc/en-us/articles/17361835464087-Summary-of-Available-APIs), which are configured by the organization. The plugin does not request platform passwords or tokens and does not scan website pages. In the settings, you can hide courses from each platform; hiding does not delete records.
 
 ## Appearance
 

@@ -99,3 +99,85 @@ export function renderBreakdown(card: HTMLElement, notes: NoteRecord[], kind: "f
     }
 
 }
+
+export function renderVaultHeatmap(card: HTMLElement, events: ActivityEvent[]): void {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yearStart = new Date(today);
+  yearStart.setDate(yearStart.getDate() - 364);
+  const rangeStart = new Date(today);
+  rangeStart.setDate(rangeStart.getDate() - 364);
+  rangeStart.setDate(rangeStart.getDate() - rangeStart.getDay());
+  const firstVisibleDate = toDateKey(rangeStart);
+  const todayKey = toDateKey(today);
+
+  const counts = new Map<string, number>();
+  for (const event of events) {
+    if (event.date >= firstVisibleDate && event.date <= todayKey) counts.set(event.date, (counts.get(event.date) ?? 0) + 1);
+  }
+  const activeDays = new Set([...counts.keys()].filter((date) => date >= toDateKey(yearStart)));
+  let currentStreak = 0;
+  const streakCursor = new Date(today);
+  if (!activeDays.has(toDateKey(streakCursor))) streakCursor.setDate(streakCursor.getDate() - 1);
+  while (activeDays.has(toDateKey(streakCursor))) {
+    currentStreak++;
+    streakCursor.setDate(streakCursor.getDate() - 1);
+  }
+  let longestStreak = 0;
+  let runningStreak = 0;
+  for (let offset = 0; offset <= 364; offset++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - (364 - offset));
+    if (activeDays.has(toDateKey(date))) {
+      runningStreak++;
+      longestStreak = Math.max(longestStreak, runningStreak);
+    } else runningStreak = 0;
+  }
+
+  const summary = card.createDiv({ cls: "vp-heatmap-summary" });
+  summary.createEl("strong", { text: `Текущая серия: ${currentStreak} дн.` });
+  summary.createSpan({ text: `Лучшая: ${longestStreak} дн. · Активных дней: ${activeDays.size}` });
+
+  const scroller = card.createDiv({ cls: "vp-heatmap-scroll" });
+  const heatmap = scroller.createDiv({ cls: "vp-heatmap", attr: { role: "img", "aria-label": "Активность хранилища за последние 365 дней" } });
+  const labels = heatmap.createDiv({ cls: "vp-heatmap-weekdays", attr: { "aria-hidden": "true" } });
+  for (const label of ["", "Пн", "", "Ср", "", "Пт", ""]) labels.createSpan({ text: label });
+
+  const calendar = heatmap.createDiv({ cls: "vp-heatmap-calendar" });
+  const monthRow = calendar.createDiv({ cls: "vp-heatmap-months", attr: { "aria-hidden": "true" } });
+  const grid = calendar.createDiv({ cls: "vp-heatmap-grid" });
+  let lastMonth = -1;
+  let weekColumn = 0;
+  const date = new Date(rangeStart);
+  for (let index = 0; index < 371; index++, date.setDate(date.getDate() + 1)) {
+    const dateKey = toDateKey(date);
+    const afterToday = date > today;
+    if (date.getDay() === 0 && !afterToday) {
+      weekColumn++;
+      if (date.getMonth() !== lastMonth) {
+        const month = monthRow.createSpan({ text: new Intl.DateTimeFormat("ru-RU", { month: "short" }).format(date) });
+        month.style.gridColumnStart = String(weekColumn);
+        lastMonth = date.getMonth();
+      }
+    }
+    const count = counts.get(dateKey) ?? 0;
+    const level = count === 0 ? 0 : count < 3 ? 1 : count < 6 ? 2 : count < 10 ? 3 : 4;
+    const day = grid.createDiv({ cls: `vp-heatmap-day${afterToday ? " is-future" : ""}`, attr: {
+      "data-level": String(level),
+      "aria-label": `${new Intl.DateTimeFormat("ru-RU", { dateStyle: "long" }).format(date)}: ${count} событий`,
+      title: `${new Intl.DateTimeFormat("ru-RU", { dateStyle: "long" }).format(date)} · ${count} событий`,
+    } });
+    if (afterToday) day.setAttribute("aria-hidden", "true");
+  }
+  const legend = card.createDiv({ cls: "vp-heatmap-legend", attr: { "aria-hidden": "true" } });
+  legend.createSpan({ text: "Меньше" });
+  for (let level = 0; level <= 4; level++) legend.createDiv({ cls: "vp-heatmap-day", attr: { "data-level": String(level) } });
+  legend.createSpan({ text: "Больше" });
+}
+
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
