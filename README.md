@@ -1,4 +1,4 @@
-# Vault Pulse
+# Vault Scope
 
 An adaptive Obsidian dashboard for local note statistics and planning. The interface uses the color variables of the active Obsidian theme and is designed for both desktop and mobile.
 

@@ -1,6 +1,6 @@
 {
-  "name": "vault-pulse",
-  "version": "0.8.1",
+  "name": "VaultScope",
+  "version": "0.8.2",
   "private": true,
   "scripts": {
     "dev": "node esbuild.config.mjs",

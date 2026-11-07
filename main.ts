@@ -172,7 +172,7 @@ export default class VaultPulsePlugin extends Plugin {
   onunload(): void {
     if (this.githubTimer !== undefined) window.clearInterval(this.githubTimer);
     void this.stats?.flush();
-    this.app.workspace.detachLeavesOfType(VIEW_TYPE);
+    // detachLeavesOfType removed as required by Obsidian API guidelines
   }
 
   refreshDashboards(): void {
@@ -1153,17 +1153,17 @@ class DashboardView extends ItemView {
       });
     } else {
       const plot = card.createDiv({ cls: `vp-chart-plot vp-chart-${chartStyle}`, attr: { role: "img", "aria-label": `График активности за период: ${periodCaption(period)}` } });
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      
+      const svg = plot.createSvg("svg");
       svg.setAttribute("viewBox", "0 0 100 100");
       svg.setAttribute("preserveAspectRatio", "none");
       svg.setAttribute("aria-hidden", "true");
-      plot.appendChild(svg);
+      
       for (const y of [12, 32, 52, 72, 92]) {
-        const guide = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        const guide = svg.createSvg("line");
         guide.setAttribute("x1", "0"); guide.setAttribute("x2", "100");
         guide.setAttribute("y1", String(y)); guide.setAttribute("y2", String(y));
         guide.setAttribute("class", "vp-chart-guide");
-        svg.appendChild(guide);
       }
       const pointString = (key: "created" | "modified") => buckets.map((bucket, index) => {
         const x = buckets.length === 1 ? 50 : index / (buckets.length - 1) * 100;
@@ -1172,16 +1172,14 @@ class DashboardView extends ItemView {
       }).join(" ");
       if (chartStyle === "area") {
         const points = pointString("created");
-        const area = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+        const area = svg.createSvg("polygon");
         area.setAttribute("points", `0,92 ${points} 100,92`);
         area.setAttribute("class", "vp-chart-area-fill");
-        svg.appendChild(area);
       }
       for (const key of ["modified", "created"] as const) {
-        const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        const line = svg.createSvg("polyline");
         line.setAttribute("points", pointString(key));
         line.setAttribute("class", `vp-chart-line vp-chart-line-${key}`);
-        svg.appendChild(line);
       }
       const xLabels = card.createDiv({ cls: `vp-chart-x-labels vp-chart-x-labels-${period}` });
       for (const label of labels) xLabels.createSpan({ text: label });
@@ -1269,9 +1267,11 @@ class VaultPulseSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Vault Pulse" });
+    
+    new Setting(containerEl).setName("Vault Pulse").setHeading();
     containerEl.createEl("p", { text: "Настройки собраны по разделам. Откройте только те, которые хотите изменить." });
-    containerEl.createEl("h3", { text: "Внешний вид" });
+    
+    new Setting(containerEl).setName("Внешний вид").setHeading();
     new Setting(containerEl).setName("Стиль панелей").setDesc("Выберите оформление карточек дашборда.")
       .addDropdown((dropdown) => dropdown.addOption("mac", "MacBook · стекло")
         .addOption("minimal", "Минимализм").addOption("outlined", "Контурный")
@@ -1292,7 +1292,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
         .setValue(this.plugin.settings.density)
         .onChange(async (value) => { this.plugin.settings.density = value as Density; await this.plugin.saveSettings(); }));
 
-    containerEl.createEl("h3", { text: "Основное" });
+    new Setting(containerEl).setName("Основное").setHeading();
 
     new Setting(containerEl).setName("Период по умолчанию").setDesc("Период, выбранный при открытии панели.")
       .addDropdown((dropdown) => dropdown.addOption("day", "День").addOption("week", "Неделя")
@@ -1316,7 +1316,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-    containerEl.createEl("h3", { text: "Дневная запись" });
+    new Setting(containerEl).setName("Дневная запись").setHeading();
     containerEl.createEl("p", { text: "Заметка создаётся или дополняется только после предпросмотра и вашего подтверждения." });
     new Setting(containerEl).setName("Папка дневных заметок").setDesc("Путь внутри хранилища. Папки будут созданы после подтверждения заметки.")
       .addText((text) => text.setPlaceholder("Планирование/Дни").setValue(this.plugin.settings.dailyFolder)
@@ -1329,7 +1329,8 @@ class VaultPulseSettingTab extends PluginSettingTab {
           this.plugin.settings.dailyDateFormat = format;
           await this.plugin.saveSettings();
         }));
-    containerEl.createEl("h4", { text: "Блоки дневной записи" });
+    
+    new Setting(containerEl).setName("Блоки дневной записи").setHeading();
     containerEl.createEl("p", { text: "Выберите блоки и настройте порядок кнопками со стрелками." });
     for (const [index, blockId] of this.plugin.settings.dailyBlocks.entries()) {
       const block = DAILY_BLOCKS.find((item) => item.id === blockId);
@@ -1355,7 +1356,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
         }));
     }
 
-    containerEl.createEl("h3", { text: "Задачи" });
+    new Setting(containerEl).setName("Задачи").setHeading();
     new Setting(containerEl).setName("Куда добавлять новые задачи").setDesc("Выберите дневную заметку или отдельный файл со списком задач.")
       .addDropdown((dropdown) => dropdown.addOption("daily", "В дневную заметку").addOption("file", "В отдельный файл")
         .setValue(this.plugin.settings.taskDestination)
@@ -1377,7 +1378,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
         .setValue(String(this.plugin.settings.taskDisplayLimit))
         .onChange(async (value) => { this.plugin.settings.taskDisplayLimit = Number(value); await this.plugin.saveSettings(); }));
 
-    containerEl.createEl("h3", { text: "Расписание" });
+    new Setting(containerEl).setName("Расписание").setHeading();
     new Setting(containerEl).setName("Начало рабочего дня").setDesc("Формат 24 часа: HH:MM.")
       .addText((text) => text.setPlaceholder("09:00").setValue(this.plugin.settings.scheduleStart)
         .onChange(async (value) => { await this.updateWorkingHours(value, this.plugin.settings.scheduleEnd); }));
@@ -1400,7 +1401,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
       .addToggle((toggle) => toggle.setValue(this.plugin.settings.rolloverTasks)
         .onChange(async (value) => { this.plugin.settings.rolloverTasks = value; await this.plugin.saveSettings(); this.display(); }));
 
-    containerEl.createEl("h3", { text: "Периодические планы" });
+    new Setting(containerEl).setName("Периодические планы").setHeading();
     containerEl.createEl("p", { text: "Шаблоны содержат Markdown-разделы и подстановки {{period}}, {{start}}, {{end}}, {{stats}}, {{tasks}}, {{notes}} и {{projects}}." });
     new Setting(containerEl).setName("Период по умолчанию").setDesc("Какой обзор открывать первым в панели планирования.")
       .addDropdown((dropdown) => dropdown.addOption("week", "Неделя").addOption("month", "Месяц").addOption("year", "Год")
@@ -1411,7 +1412,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
       const folderValue = period === "week" ? this.plugin.settings.weeklyFolder : period === "month" ? this.plugin.settings.monthlyFolder : this.plugin.settings.yearlyFolder;
       const formatValue = period === "week" ? this.plugin.settings.weeklyFormat : period === "month" ? this.plugin.settings.monthlyFormat : this.plugin.settings.yearlyFormat;
       const templateValue = period === "week" ? this.plugin.settings.weeklyTemplate : period === "month" ? this.plugin.settings.monthlyTemplate : this.plugin.settings.yearlyTemplate;
-      containerEl.createEl("h4", { text: `Шаблон: ${label.toLocaleLowerCase()}` });
+      new Setting(containerEl).setName(`Шаблон: ${label.toLocaleLowerCase()}`).setHeading();
       new Setting(containerEl).setName("Папка").setDesc("Путь внутри хранилища.")
         .addText((text) => text.setValue(folderValue).onChange(async (value) => {
           if (period === "week") this.plugin.settings.weeklyFolder = value.trim().replace(/\\/g, "/");
@@ -1440,7 +1441,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
         });
     }
 
-    containerEl.createEl("h3", { text: "Обучение" });
+    new Setting(containerEl).setName("Обучение").setHeading();
     containerEl.createEl("p", { text: "Выберите платформы для ручного учёта. Stepik API требует OAuth-доступ к аккаунту; личные данные прогресса Udemy доступны через корпоративные API Udemy Business с административной настройкой. Автоматическое подключение здесь не включено." });
     new Setting(containerEl).setName("Stepik").setDesc("Показывать курсы Stepik в списке обучения.")
       .addToggle((toggle) => toggle.setValue(this.plugin.settings.learningStepikEnabled)
@@ -1452,7 +1453,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
       .addToggle((toggle) => toggle.setValue(this.plugin.settings.learningOtherEnabled)
         .onChange(async (value) => { this.plugin.settings.learningOtherEnabled = value; await this.plugin.saveSettings(); }));
 
-    containerEl.createEl("h3", { text: "GitHub" });
+    new Setting(containerEl).setName("GitHub").setHeading();
     containerEl.createEl("p", { text: "Vault Pulse запрашивает только список коммитов выбранных репозиториев. Для закрытых репозиториев используйте fine-grained token с доступом только к нужным репозиториям и Contents: read. Токен хранится через SecretStorage Obsidian, его значение не записывается в data.json." });
     const repoInputSetting = new Setting(containerEl).setName("Добавить репозиторий").setDesc("Формат owner/repo или ссылка https://github.com/owner/repo.");
     let repoInputValue = "";
@@ -1467,7 +1468,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
     }));
     for (const repo of this.plugin.settings.githubRepositories) {
       new Setting(containerEl).setName(repo).setDesc("Репозиторий для отображения коммитов.")
-        .addButton((button) => button.setButtonText("Удалить").setWarning().onClick(async () => {
+        .addButton((button) => button.setButtonText("Удалить").setDestructive().onClick(async () => {
           this.plugin.settings.githubRepositories = this.plugin.settings.githubRepositories.filter((item) => item !== repo);
           this.plugin.githubCommits = this.plugin.githubCommits.filter((commit) => commit.repo !== repo);
           await this.plugin.saveSettings();
@@ -1487,7 +1488,7 @@ class VaultPulseSettingTab extends PluginSettingTab {
         .setValue(String(this.plugin.settings.githubSyncMinutes))
         .onChange(async (value) => { this.plugin.settings.githubSyncMinutes = Number(value); await this.plugin.saveSettings(); }));
 
-    containerEl.createEl("h3", { text: "Панели" });
+    new Setting(containerEl).setName("Панели").setHeading();
     containerEl.createEl("p", { text: "Выберите видимые панели и измените их порядок. Изменения применяются сразу." });
     for (const [index, id] of this.plugin.settings.panelOrder.entries()) {
       const panel = PANELS.find((item) => item.id === id);
@@ -1509,23 +1510,24 @@ class VaultPulseSettingTab extends PluginSettingTab {
   }
 
   private wrapSettingsSections(container: HTMLElement): void {
-    const headings = Array.from(container.querySelectorAll(":scope > h3"));
-    headings.forEach((heading, index) => {
-      const details = document.createElement("details");
-      details.className = "vp-settings-section";
+    const headingElements = Array.from(container.children).filter((el) => el.classList.contains("setting-item-heading"));
+    
+    headingElements.forEach((headingEl, index) => {
+      const details = container.createEl("details", { cls: "vp-settings-section" });
       details.open = index === 0;
-      const summary = document.createElement("summary");
-      summary.appendChild(heading);
+      const summary = details.createEl("summary");
+      
+      headingEl.parentNode?.insertBefore(details, headingEl);
+      summary.appendChild(headingEl);
       details.appendChild(summary);
-      const nodes: Node[] = [];
+
+      const nextHeading = headingElements[index + 1];
       let sibling = details.nextSibling;
-      while (sibling && sibling !== headings[index + 1]) {
+      while (sibling && sibling !== nextHeading) {
         const next = sibling.nextSibling;
-        nodes.push(sibling);
+        details.appendChild(sibling);
         sibling = next;
       }
-      heading.before(details);
-      for (const node of nodes) details.appendChild(node);
     });
   }
 

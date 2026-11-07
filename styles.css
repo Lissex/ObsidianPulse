@@ -325,6 +325,13 @@ a.vp-learning-course-name:hover { color: var(--text-accent); text-decoration: un
   .vp-dashboard[data-panel-style="mac"] .vp-card:hover { transform: none; }
   .vp-chart-plot { height: 132px; }
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .vp-card, .vp-daily-count, .vp-stat, .vp-section-tab { transition: none !important; }
+  .vp-dashboard .vp-card, 
+  .vp-dashboard .vp-daily-count, 
+  .vp-dashboard .vp-stat, 
+  .vp-dashboard .vp-section-tab,
+  .vp-dashboard[data-panel-style="mac"] .vp-card { 
+    transition: none; 
+  }
 }
