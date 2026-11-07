@@ -9,6 +9,10 @@ An adaptive Obsidian dashboard for local note statistics and planning. The inter
 3. Run `npm run build` to type-check and create a production bundle.
 4. Copy `manifest.json`, `main.js`, and `styles.css` into `.obsidian/plugins/vault-pulse/` in a test vault.
 
+## Architecture
+
+`main.ts` owns plugin startup, Obsidian event registration, and coordination between services. `dashboard.ts` owns dashboard state and panel composition; `dashboard-charts.ts` renders activity charts and folder/tag breakdowns. `settings-tab.ts` owns the settings UI and its Obsidian settings-search entry, while `settings-model.ts` validates persisted settings and supplies defaults. `view-utils.ts` contains shared presentation and Markdown helpers. Statistics, tasks, daily notes, schedules, period plans, GitHub, and learning remain in focused domain modules.
+
 ## Statistics
 
 The plugin indexes Markdown notes available through the Obsidian Vault API, including nested folders, archives, and template folders. The statistics history is stored in `Vault Pulse/activity.json` within the vault. The file can be moved and synced along with the vault.
@@ -51,8 +55,8 @@ The "Learning" panel maintains a local list of courses from Stepik, Udemy, and o
 
 ## Appearance
 
-In the "Appearance" settings section, three card styles are available (translucent macOS-inspired, minimal, and outlined), three activity chart shapes (bars, line, area), and six palettes, including Obsidianite. The interface uses tokens from the active Obsidian theme; the selected palette only changes Vault Pulse accents.
+In the "Appearance" settings section, three card styles are available (translucent macOS-inspired, minimal, and outlined), three activity chart shapes (bars, line, area), and three complete color themes: Obsidianite, classic dark, and classic light. Layout adapts to the dashboard pane width, including narrow desktop sidebars.
 
-The "Obsidian theme color" palette inherits `--text-accent`, `--text-sub-accent`, `--background-secondary`, and `--default-font`, so in Obsidianite, charts and headings pick up the turquoise/pink accents, dark surfaces, and Rubik font. A separate Obsidianite palette applies its signature cyan and pink accents regardless of the active theme.
+The Obsidianite theme uses dark violet surfaces with cyan and pink accents regardless of the active Obsidian theme. Classic dark and classic light use neutral surfaces and blue accents. All themes inherit the active theme's font.
 
 Notes inside hidden directories that are inaccessible via the Vault API may not be indexed. This is a limitation of the public API, particularly important for consistent mobile support.

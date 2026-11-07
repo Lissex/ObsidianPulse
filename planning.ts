@@ -1,4 +1,4 @@
-import { App, Modal, Notice, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
+import { App, Modal, Notice, TFile, TFolder, Vault } from "obsidian";
 import { ActivityEvent, NoteRecord } from "./stats";
 import { TaskRecord } from "./tasks";
 
@@ -299,7 +299,7 @@ async function ensureFolders(vault: Vault, path: string): Promise<void> {
   let current = "";
   for (const segment of parent.split("/").filter(Boolean)) {
     current = current ? `${current}/${segment}` : segment;
-    const existing = vault.getAbstractFileByPath(current) as TAbstractFile | null;
+    const existing = vault.getAbstractFileByPath(current);
     if (existing instanceof TFolder) continue;
     if (existing) throw new Error(`Папка ${current} занята файлом.`);
     await vault.createFolder(current);

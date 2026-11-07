@@ -144,20 +144,15 @@ export class StatsService {
       const rawContent = await this.app.vault.read(file);
       const parsedData: unknown = JSON.parse(rawContent);
       
-      if (typeof parsedData !== "object" || parsedData === null) {
-        throw new Error("Файл статистики имеет неизвестный формат. Исходный файл сохранён без изменений.");
-      }
-      
-      const parsed = parsedData as Partial<StoredStats>;
-      if (parsed.version !== 1 || !parsed.notes || !Array.isArray(parsed.events)) {
+      if (!isStoredStats(parsedData)) {
         throw new Error("Файл статистики имеет неизвестный формат. Исходный файл сохранён без изменений.");
       }
       
       this.data = {
         version: 1,
-        initializedAt: typeof parsed.initializedAt === "number" ? parsed.initializedAt : Date.now(),
-        notes: parsed.notes as Record<string, NoteRecord>,
-        events: parsed.events as ActivityEvent[],
+        initializedAt: parsedData.initializedAt || Date.now(),
+        notes: parsedData.notes,
+        events: parsedData.events,
       };
       
       this.eventIds = new Set(this.data.events.map((event) => event.id));
@@ -232,7 +227,8 @@ export class StatsService {
         if (tag.trim()) tags.add(tag.startsWith("#") ? tag : `#${tag}`);
       }
     } else if (Array.isArray(frontmatterTags)) {
-      for (const tag of frontmatterTags as unknown[]) {
+      const tagValues: unknown[] = frontmatterTags;
+      for (const tag of tagValues) {
         if (typeof tag === "string" && tag.trim()) tags.add(tag.startsWith("#") ? tag : `#${tag}`);
       }
     }
@@ -294,6 +290,29 @@ export class StatsService {
     });
     await this.saveQueue;
   }
+}
+
+function isStoredStats(value: unknown): value is StoredStats {
+  if (!isRecord(value) || value.version !== 1 || !isRecord(value.notes) || !Array.isArray(value.events)) return false;
+  if (typeof value.initializedAt !== "number") return false;
+  const eventValues: unknown[] = value.events;
+  const notesValid = Object.values(value.notes).every((note) => isRecord(note)
+    && typeof note.path === "string" && typeof note.createdAt === "number" && typeof note.modifiedAt === "number"
+    && typeof note.folder === "string" && isStringArray(note.tags) && typeof note.links === "number");
+  const eventsValid = eventValues.every((event) => isRecord(event)
+    && typeof event.id === "string" && typeof event.date === "string" && typeof event.timestamp === "number"
+    && typeof event.path === "string" && typeof event.folder === "string" && isStringArray(event.tags)
+    && (event.kind === "created" || event.kind === "modified")
+    && (event.classification === undefined || event.classification === "normal" || event.classification === "import" || event.classification === "sync" || event.classification === "bulk"));
+  return notesValid && eventsValid;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item: unknown) => typeof item === "string");
 }
 
 export function getDateRange(period: StatsPeriod, now = new Date(), weekStartsMonday = true): { start: Date; end: Date; bucketCount: number } {

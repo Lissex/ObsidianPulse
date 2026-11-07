@@ -1,4 +1,4 @@
-import { App, Modal, Notice, TAbstractFile, TFile, TFolder, Vault } from "obsidian";
+import { App, Modal, Notice, TFile, TFolder, Vault } from "obsidian";
 import { ActivityEvent } from "./stats";
 
 export type DailyBlockId = "plan" | "events" | "activity" | "completed" | "review";
@@ -186,7 +186,7 @@ export class DailyNotePreviewModal extends Modal {
     let current = "";
     for (const segment of parent.split("/")) {
       current = current ? `${current}/${segment}` : segment;
-      const existing = this.vault.getAbstractFileByPath(current) as TAbstractFile | null;
+      const existing = this.vault.getAbstractFileByPath(current);
       if (existing instanceof TFolder) continue;
       if (existing) throw new Error(`Папка ${current} занята файлом.`);
       await this.vault.createFolder(current);

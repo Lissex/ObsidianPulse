@@ -63,8 +63,8 @@ export async function fetchRepositoryCommits(
     });
 
     if (response.status < 200 || response.status >= 300) {
-      const jsonObj = response.json as Record<string, unknown> | null;
-      const message = (jsonObj && typeof jsonObj.message === "string") ? jsonObj.message : `HTTP ${response.status}`;
+      const errorBody: unknown = response.json;
+      const message = isRecord(errorBody) && typeof errorBody.message === "string" ? errorBody.message : `HTTP ${response.status}`;
       
       if (response.status === 401) throw new Error("GitHub отклонил токен. Проверьте его в настройках Vault Pulse.");
       if (response.status === 403) throw new Error("GitHub ограничил запрос или токен не имеет Contents: read.");
@@ -77,8 +77,8 @@ export async function fetchRepositoryCommits(
     if (!Array.isArray(rawItems)) {
       throw new Error("GitHub API вернул неожиданный формат данных (ожидался массив).");
     }
-
-    const pageItems = (rawItems as GitHubApiCommit[]).map((item) => {
+    const apiItems: unknown[] = rawItems;
+    const pageItems = apiItems.filter(isGitHubApiCommit).map((item) => {
       const firstLine = item.commit && typeof item.commit.message === "string" 
         ? item.commit.message.split("\n")[0] 
         : "";
@@ -98,4 +98,15 @@ export async function fetchRepositoryCommits(
   }
   
   return commits;
+}
+
+function isGitHubApiCommit(value: unknown): value is GitHubApiCommit {
+  if (!isRecord(value) || typeof value.sha !== "string" || typeof value.html_url !== "string" || !isRecord(value.commit)) return false;
+  if (typeof value.commit.message !== "string") return false;
+  if (value.commit.author !== null && (!isRecord(value.commit.author) || typeof value.commit.author.date !== "string")) return false;
+  return value.author === null || (isRecord(value.author) && typeof value.author.login === "string");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

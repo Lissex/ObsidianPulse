@@ -18,11 +18,14 @@ export type LearningCourseInput = Omit<LearningCourse, "id" | "updatedAt">;
 
 export function normalizeLearningCourses(value: unknown): LearningCourse[] {
   if (!Array.isArray(value)) return [];
-  return value.flatMap((item: unknown) => {
-    if (!item || typeof item !== "object") return [];
-    const course = item as Partial<LearningCourse>;
+  const courses: unknown[] = value;
+  const normalized: LearningCourse[] = [];
+  for (const item of courses) {
+    if (!isRecord(item)) continue;
+    const course = item;
     
-    if (typeof course.title !== "string" || !course.title.trim()) return [];
+    if (typeof course.title !== "string" || !course.title.trim()) continue;
+    const title = course.title.trim();
     
     const platform: LearningPlatform = course.platform === "stepik" || course.platform === "udemy" ? course.platform : "other";
     const status: LearningStatus = course.status === "paused" || course.status === "completed" ? course.status : "active";
@@ -32,17 +35,22 @@ export function normalizeLearningCourses(value: unknown): LearningCourse[] {
       ? Math.max(0, Math.min(100, rawProgress)) 
       : 0;
       
-    return [{
+    normalized.push({
       id: typeof course.id === "string" ? course.id : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       platform,
-      title: course.title.trim(),
+      title,
       url: typeof course.url === "string" ? course.url : "",
       progress,
       status: progress >= 100 ? "completed" : status,
       nextStep: typeof course.nextStep === "string" ? course.nextStep : "",
       updatedAt: typeof course.updatedAt === "string" ? course.updatedAt : new Date().toISOString(),
-    }];
-  });
+    });
+  }
+  return normalized;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export class LearningCourseModal extends Modal {

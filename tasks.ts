@@ -108,7 +108,9 @@ export class TaskService {
     this.onUpdate();
   }
 
-  getTasks(): TaskRecord[] { return [...this.byPath.values()].flat(); }
+  getTasks(): TaskRecord[] {
+    return Array.from(this.byPath.values()).reduce<TaskRecord[]>((tasks, fileTasks) => tasks.concat(fileTasks), []);
+  }
 
   onCreate(file: TAbstractFile): void { this.queueFile(file); }
   onModify(file: TAbstractFile): void { this.queueFile(file); }
