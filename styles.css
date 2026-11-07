@@ -271,7 +271,7 @@ a.vp-learning-course-name:hover { color: var(--text-accent); text-decoration: un
 .theme-dark .vp-dashboard { --vp-border: var(--table-border-color, var(--background-modifier-border)); }
 .vp-dashboard[data-accent="obsidianite"] { --vp-accent: #48b8d5; --vp-series-modified: #f05b9c; --vp-on-accent: #17141e; --background-primary: #17151f; --background-secondary: #211e2b; --background-modifier-hover: #302b3a; --background-modifier-border: #383342; --background-modifier-border-hover: #51495d; --text-normal: #e9e6ef; --text-muted: #b7b2c0; --text-faint: #918b9b; --text-accent: #48b8d5; --text-sub-accent: #f05b9c; --interactive-accent: #48b8d5; --interactive-accent-hover: #63c7df; --text-on-accent: #17141e; --vp-accent: #48b8d5; --vp-series-modified: #f05b9c; --vp-on-accent: #17141e; --vp-border: #383342; }
 .vp-dashboard[data-accent="classic-dark"] { --background-primary: #202020; --background-secondary: #262626; --background-modifier-hover: #343434; --background-modifier-border: #3b3b3b; --background-modifier-border-hover: #505050; --text-normal: #dcddde; --text-muted: #999; --text-faint: #707070; --text-accent: #8ab4f8; --text-sub-accent: #b7a1e2; --interactive-accent: #7c9edb; --interactive-accent-hover: #91afe8; --text-on-accent: #fff; --vp-accent: #8ab4f8; --vp-series-modified: #b7a1e2; --vp-on-accent: #fff; --vp-border: #3b3b3b; color-scheme: dark; }
-.vp-dashboard[data-accent="classic-light"] { --background-primary: #ffffff; --background-secondary: #f5f6f7; --background-modifier-hover: #e8eaed; --background-modifier-border: #d9dce1; --background-modifier-border-hover: #c3c7ce; --text-normal: #202124; --text-muted: #5f6368; --text-faint: #777b80; --text-accent: #315fbd; --text-sub-accent: #c04b76; --interactive-accent: #426fc5; --interactive-accent-hover: #315fbd; --text-on-accent: #fff; --vp-accent: #315fbd; --vp-series-modified: #c04b76; --vp-on-accent: #fff; --vp-border: #d9dce1; color-scheme: light; }
+.vp-dashboard[data-accent="classic-light"] { --background-primary: #f4f6fa; --background-secondary: #ffffff; --background-modifier-hover: #e9edf5; --background-modifier-border: #dce2ec; --background-modifier-border-hover: #c4cedd; --text-normal: #202b3c; --text-muted: #56647a; --text-faint: #77849a; --text-accent: #315fbd; --text-sub-accent: #bd527c; --interactive-accent: #426fc5; --interactive-accent-hover: #315fbd; --text-on-accent: #fff; --vp-accent: #315fbd; --vp-series-modified: #bd527c; --vp-on-accent: #fff; --vp-border: #dce2ec; color-scheme: light; }
 .vp-dashboard .vp-period-button.is-active, .vp-dashboard .vp-burst-save { color: var(--vp-on-accent); background: var(--vp-accent); }
 .vp-dashboard .vp-period-button.is-active:hover, .vp-dashboard .vp-burst-save:hover { filter: brightness(1.06); }
 .vp-dashboard .vp-section-tab.is-active { color: var(--vp-accent); }
@@ -307,7 +307,7 @@ a.vp-learning-course-name:hover { color: var(--text-accent); text-decoration: un
 
 /* Settings control center */
 .vp-settings-shell.setting-item { display: block; width: 100%; padding: 0; border: 0; background: transparent; }
-.vp-setting-content { --vp-settings-accent: var(--text-accent, var(--interactive-accent)); width: 100%; max-width: 1040px; box-sizing: border-box; margin: 0 auto; padding: 20px clamp(12px, 3vw, 28px) 32px; color: var(--text-normal); }
+.vp-setting-content { --vp-settings-accent: var(--text-accent, var(--interactive-accent)); container-name: vp-settings; container-type: inline-size; width: 100%; max-width: 1040px; box-sizing: border-box; margin: 0 auto; padding: 20px clamp(12px, 3vw, 28px) 32px; color: var(--text-normal); }
 .vp-settings-hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 390px); align-items: center; gap: 28px; min-height: 190px; margin: 4px 0 20px; padding: clamp(22px, 4vw, 38px); overflow: hidden; border: 1px solid var(--background-modifier-border); border-radius: 24px; background: radial-gradient(ellipse at 10% 0%, color-mix(in srgb, var(--vp-settings-accent) 18%, transparent), transparent 50%), linear-gradient(135deg, var(--background-secondary), var(--background-primary)); box-shadow: 0 18px 48px #00000012, inset 0 1px 0 #ffffff0b; }
 .vp-settings-hero::after { position: absolute; right: -80px; bottom: -160px; width: 320px; height: 320px; border: 1px solid color-mix(in srgb, var(--vp-settings-accent) 18%, transparent); border-radius: 50%; content: ""; pointer-events: none; }
 .vp-settings-hero-copy { position: relative; z-index: 1; max-width: 540px; }
@@ -375,6 +375,32 @@ a.vp-learning-course-name:hover { color: var(--text-accent); text-decoration: un
   .vp-theme-option, .vp-settings-search, .vp-settings-nav-item, .vp-settings-section { transition: none; }
 }
 
+/* Settings live inside Obsidian's pane, so adapt to pane width rather than app width. */
+@container vp-settings (max-width: 820px) {
+  .vp-settings-hero { grid-template-columns: minmax(0, 1fr); gap: 18px; min-height: 0; padding: 26px; }
+  .vp-settings-hero-copy { width: 100%; max-width: none; }
+  .vp-settings-hero-copy > .setting-item-heading .setting-item-name { max-width: none; overflow-wrap: anywhere; }
+  .vp-settings-hero p { max-width: 58ch; }
+  .vp-theme-picker { grid-template-columns: minmax(0, 1fr); }
+  .vp-theme-option { align-items: center; flex-direction: row; gap: 12px; padding: 9px 12px; }
+  .vp-theme-preview { width: 48px; height: 34px; flex-basis: 48px; }
+  .vp-theme-note { font-size: 0.64rem; }
+  .vp-settings-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .vp-settings-nav-item { min-width: 0; justify-content: flex-start; white-space: normal; }
+  .vp-settings-nav-item span:last-child { overflow-wrap: anywhere; }
+}
+@container vp-settings (max-width: 500px) {
+  .vp-setting-content { padding: 12px 8px 24px; }
+  .vp-settings-hero { padding: 20px 17px; border-radius: 18px; }
+  .vp-settings-toolbar { align-items: stretch; }
+  .vp-settings-nav { grid-template-columns: minmax(0, 1fr); }
+  .vp-settings-nav-item { min-height: 35px; }
+  .vp-settings-section > :not(summary) { margin-right: 13px; margin-left: 13px; }
+  .vp-settings-section .setting-item { align-items: flex-start; flex-direction: column; gap: 9px; }
+  .vp-settings-section .setting-item-control { width: 100%; justify-content: flex-start; }
+  .vp-settings-section .setting-item-control input:not([type="checkbox"]), .vp-settings-section .setting-item-control select, .vp-settings-section .setting-item-control textarea { width: 100%; min-width: 0; }
+}
+
 .vp-chart-plot { position: relative; height: 150px; margin: 18px 0 3px; overflow: hidden; border-bottom: 1px solid var(--background-modifier-border); }
 .vp-chart-plot svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .vp-chart-guide { stroke: var(--background-modifier-border); stroke-width: 0.45; stroke-dasharray: 1.2 1.8; vector-effect: non-scaling-stroke; }
@@ -408,6 +434,11 @@ a.vp-learning-course-name:hover { color: var(--text-accent); text-decoration: un
 .vp-heatmap-day.is-future { visibility: hidden; }
 .vp-heatmap-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 7px; color: var(--text-faint); font-size: 0.56rem; }
 .vp-heatmap-legend .vp-heatmap-day { width: 9px; height: 9px; }
+.vp-github-streak-summary strong { color: color-mix(in srgb, #35a66f 74%, var(--text-normal)); }
+.vp-github-heatmap .vp-heatmap-day[data-level="1"] { border-color: color-mix(in srgb, #35a66f 30%, transparent); background: color-mix(in srgb, #35a66f 22%, var(--background-secondary)); }
+.vp-github-heatmap .vp-heatmap-day[data-level="2"] { border-color: color-mix(in srgb, #35a66f 45%, transparent); background: color-mix(in srgb, #35a66f 42%, var(--background-secondary)); }
+.vp-github-heatmap .vp-heatmap-day[data-level="3"] { border-color: color-mix(in srgb, #35a66f 65%, transparent); background: color-mix(in srgb, #35a66f 68%, var(--background-secondary)); }
+.vp-github-heatmap .vp-heatmap-day[data-level="4"] { border-color: #35a66f; background: #35a66f; }
 
 @media (max-width: 640px) {
   .vp-section-nav { padding: 4px; gap: 2px; }

@@ -1,10 +1,10 @@
 import { Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
-import { StatsService, getDateRange } from "./stats";
+import { StatsService } from "./stats";
 import { DailyNotePreviewModal, buildDailyContent, buildDailyPath } from "./daily";
 import { NewTaskData, NewTaskModal, TaskRecord, TaskService, TaskRolloverModal, buildTaskLine, parseTasks } from "./tasks";
 import { NewScheduleEvent, NewScheduleEventModal, formatScheduleLine, parseScheduleEvents, timeToMinutes } from "./schedule";
 import { PeriodPlanPreviewModal, PlanningPeriod, buildPeriodPath, getPeriodInfo, mergePeriodReview, renderPeriodTemplate } from "./planning";
-import { GitHubCommit, GitHubRepository, fetchGitHubAccount, fetchRepositoryCommits } from "./github";
+import { GitHubCommit, GitHubEmptyRepositoryError, GitHubRepository, fetchGitHubAccount, fetchRepositoryCommits } from "./github";
 import { LearningCourse, LearningCourseInput, normalizeLearningCourses } from "./learning";
 import { DashboardView } from "./dashboard";
 import { VaultScopeSettingTab } from "./settings-tab";
@@ -151,15 +151,33 @@ export default class VaultScopePlugin extends Plugin {
     this.githubStatus = "Загружаю коммиты из GitHub…";
     this.refreshDashboards();
     try {
-      const range = getDateRange(this.settings.period, new Date(), this.settings.weekStartsMonday);
+      // Keep a full year for the GitHub contribution calendar; the dashboard
+      // still limits the commit list to the selected period.
+      const rangeEnd = new Date();
+      const rangeStart = new Date(rangeEnd);
+      rangeStart.setHours(0, 0, 0, 0);
+      rangeStart.setDate(rangeStart.getDate() - 364);
       const token = this.settings.githubSecretId ? this.app.secretStorage.getSecret(this.settings.githubSecretId) : null;
-      const results: GitHubCommit[][] = await Promise.all(repos.map((repo) => fetchRepositoryCommits(repo, range.start, range.end, token)));
+      const results = await Promise.all(repos.map(async (repo) => {
+        try {
+          return { repo, commits: await fetchRepositoryCommits(repo, rangeStart, rangeEnd, token), error: "" };
+        } catch (error: unknown) {
+          const message = error instanceof GitHubEmptyRepositoryError
+            ? error.message
+            : error instanceof Error ? error.message : String(error);
+          return { repo, commits: [] as GitHubCommit[], error: message };
+        }
+      }));
       const commits: GitHubCommit[] = [];
-      for (const repositoryCommits of results) {
-        for (const commit of repositoryCommits) commits.push(commit);
+      const repositoryErrors: string[] = [];
+      for (const result of results) {
+        if (result.error) repositoryErrors.push(`${result.repo}: ${result.error}`);
+        for (const commit of result.commits) commits.push(commit);
       }
       this.githubCommits = commits.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
-      this.githubStatus = `Обновлено: ${new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date())}. Коммитов: ${this.githubCommits.length}.`;
+      const updatedAt = new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "short" }).format(new Date());
+      const failures = repositoryErrors.length ? ` Ошибки репозиториев: ${repositoryErrors.join("; ")}.` : "";
+      this.githubStatus = `Обновлено: ${updatedAt}. Загружено коммитов: ${this.githubCommits.length}.${failures}`;
     } catch (error: unknown) {
       this.githubStatus = error instanceof Error ? error.message : "Не удалось получить данные GitHub.";
     } finally {

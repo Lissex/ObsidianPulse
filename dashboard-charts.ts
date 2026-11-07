@@ -1,4 +1,5 @@
 import { ActivityEvent, NoteRecord, StatsPeriod, eventInPeriod, getDateRange } from "./stats";
+import type { GitHubCommit } from "./github";
 import { localDayNumber, periodCaption } from "./view-utils";
 
 export function renderActivityChart(
@@ -168,6 +169,79 @@ export function renderVaultHeatmap(card: HTMLElement, events: ActivityEvent[]): 
       title: `${new Intl.DateTimeFormat("ru-RU", { dateStyle: "long" }).format(date)} · ${count} событий`,
     } });
     if (afterToday) day.setAttribute("aria-hidden", "true");
+  }
+  const legend = card.createDiv({ cls: "vp-heatmap-legend", attr: { "aria-hidden": "true" } });
+  legend.createSpan({ text: "Меньше" });
+  for (let level = 0; level <= 4; level++) legend.createDiv({ cls: "vp-heatmap-day", attr: { "data-level": String(level) } });
+  legend.createSpan({ text: "Больше" });
+}
+
+export function renderGitHubHeatmap(card: HTMLElement, commits: GitHubCommit[]): void {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yearStart = new Date(today);
+  yearStart.setDate(yearStart.getDate() - 364);
+  const rangeStart = new Date(yearStart);
+  rangeStart.setDate(rangeStart.getDate() - rangeStart.getDay());
+  const counts = new Map<string, number>();
+  for (const commit of commits) {
+    const timestamp = Date.parse(commit.date);
+    if (!Number.isFinite(timestamp)) continue;
+    const day = toDateKey(new Date(timestamp));
+    if (day >= toDateKey(yearStart) && day <= toDateKey(today)) counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+
+  const activeDays = new Set(counts.keys());
+  const streakCursor = new Date(today);
+  if (!activeDays.has(toDateKey(streakCursor))) streakCursor.setDate(streakCursor.getDate() - 1);
+  let currentStreak = 0;
+  while (activeDays.has(toDateKey(streakCursor))) {
+    currentStreak++;
+    streakCursor.setDate(streakCursor.getDate() - 1);
+  }
+  let longestStreak = 0;
+  let streak = 0;
+  for (let offset = 364; offset >= 0; offset--) {
+    const day = new Date(today);
+    day.setDate(day.getDate() - offset);
+    if (activeDays.has(toDateKey(day))) {
+      streak++;
+      longestStreak = Math.max(longestStreak, streak);
+    } else streak = 0;
+  }
+
+  const summary = card.createDiv({ cls: "vp-heatmap-summary vp-github-streak-summary" });
+  summary.createEl("strong", { text: `Текущая серия: ${currentStreak} дн.` });
+  summary.createSpan({ text: `Рекорд: ${longestStreak} дн. · Активных дней: ${activeDays.size}` });
+
+  const scroller = card.createDiv({ cls: "vp-heatmap-scroll vp-github-heatmap-scroll" });
+  const heatmap = scroller.createDiv({ cls: "vp-heatmap vp-github-heatmap", attr: { role: "img", "aria-label": "Коммиты GitHub за последние 365 дней" } });
+  const labels = heatmap.createDiv({ cls: "vp-heatmap-weekdays", attr: { "aria-hidden": "true" } });
+  for (const label of ["", "Пн", "", "Ср", "", "Пт", ""]) labels.createSpan({ text: label });
+  const calendar = heatmap.createDiv({ cls: "vp-heatmap-calendar" });
+  const monthRow = calendar.createDiv({ cls: "vp-heatmap-months", attr: { "aria-hidden": "true" } });
+  const grid = calendar.createDiv({ cls: "vp-heatmap-grid" });
+  const date = new Date(rangeStart);
+  let month = -1;
+  let column = 0;
+  for (let index = 0; index < 371; index++, date.setDate(date.getDate() + 1)) {
+    const key = toDateKey(date);
+    const future = date > today;
+    if (date.getDay() === 0 && !future) {
+      column++;
+      if (date.getMonth() !== month) {
+        monthRow.createSpan({ text: new Intl.DateTimeFormat("ru-RU", { month: "short" }).format(date) }).style.gridColumnStart = String(column);
+        month = date.getMonth();
+      }
+    }
+    const count = counts.get(key) ?? 0;
+    const level = count === 0 ? 0 : count < 3 ? 1 : count < 6 ? 2 : count < 10 ? 3 : 4;
+    const dayEl = grid.createDiv({ cls: `vp-heatmap-day${future ? " is-future" : ""}`, attr: {
+      "data-level": String(level),
+      "aria-label": `${new Intl.DateTimeFormat("ru-RU", { dateStyle: "long" }).format(date)}: ${count} коммитов`,
+      title: `${new Intl.DateTimeFormat("ru-RU", { dateStyle: "long" }).format(date)} · ${count} коммитов`,
+    } });
+    if (future) dayEl.setAttribute("aria-hidden", "true");
   }
   const legend = card.createDiv({ cls: "vp-heatmap-legend", attr: { "aria-hidden": "true" } });
   legend.createSpan({ text: "Меньше" });

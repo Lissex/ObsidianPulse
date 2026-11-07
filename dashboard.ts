@@ -1,5 +1,5 @@
 import { ItemView, Notice, TFile, setIcon, WorkspaceLeaf } from "obsidian";
-import { ActivityClassification, ActivityEvent, NoteRecord, StatsService, eventInPeriod, findActivityBursts } from "./stats";
+import { ActivityClassification, ActivityEvent, NoteRecord, StatsService, eventInPeriod, findActivityBursts, getDateRange } from "./stats";
 import { buildDailyPath, dailyDateKey, parseDailySummary } from "./daily";
 import { TaskPriority, TaskRecord, compareTaskPriority } from "./tasks";
 import { ScheduleEvent, eventsOverlap, parseScheduleEvents, timeToMinutes } from "./schedule";
@@ -9,7 +9,7 @@ import { DeleteLearningCourseModal, LearningCourseModal, LearningPlatform } from
 import type VaultScopePlugin from "./main";
 import { PANELS, PanelDefinition, PanelId, DashboardSection, Period } from "./settings-model";
 import { dateKeyForPlanning, folderOf, periodCaption, priorityLabel } from "./view-utils";
-import { renderActivityChart, renderBreakdown, renderVaultHeatmap } from "./dashboard-charts";
+import { renderActivityChart, renderBreakdown, renderGitHubHeatmap, renderVaultHeatmap } from "./dashboard-charts";
 
 const VIEW_TYPE = "vault-pulse-dashboard";
 
@@ -266,8 +266,15 @@ export class DashboardView extends ItemView {
     const author = filters.createEl("input", { cls: "vp-filter-select", attr: { type: "search", placeholder: "Фильтр по автору", "aria-label": "Фильтр коммитов по автору" } });
     author.value = this.githubAuthorFilter;
     author.addEventListener("change", () => { this.githubAuthorFilter = author.value; this.refresh(); });
-    const commits = this.plugin.githubCommits.filter((commit) => (this.githubRepoFilter === "*" || commit.repo === this.githubRepoFilter)
+    const matchingCommits = this.plugin.githubCommits.filter((commit) => (this.githubRepoFilter === "*" || commit.repo === this.githubRepoFilter)
       && (!this.githubAuthorFilter.trim() || commit.author.toLocaleLowerCase().includes(this.githubAuthorFilter.trim().toLocaleLowerCase())));
+    card.createEl("h3", { text: "Стрик GitHub · 365 дней", cls: "vp-heatmap-heading" });
+    renderGitHubHeatmap(card, matchingCommits);
+    const range = getDateRange(this.plugin.settings.period, new Date(), this.plugin.settings.weekStartsMonday);
+    const commits = matchingCommits.filter((commit) => {
+      const timestamp = Date.parse(commit.date);
+      return Number.isFinite(timestamp) && timestamp >= range.start.getTime() && timestamp <= range.end.getTime();
+    });
     if (!commits.length) {
       card.createEl("p", { text: "Коммитов по текущим фильтрам нет." , cls: "vp-empty-state" });
       return;

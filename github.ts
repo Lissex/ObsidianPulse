@@ -14,6 +14,13 @@ export interface GitHubRepository {
   isPrivate: boolean;
 }
 
+export class GitHubEmptyRepositoryError extends Error {
+  constructor(readonly repository: string) {
+    super(`Репозиторий ${repository} пока пустой.`);
+    this.name = "GitHubEmptyRepositoryError";
+  }
+}
+
 interface GitHubApiRepository {
   full_name: string;
   private: boolean;
@@ -115,6 +122,9 @@ export async function fetchRepositoryCommits(
       if (response.status === 401) throw new Error("GitHub отклонил токен. Проверьте его в настройках VaultScope.");
       if (response.status === 403) throw new Error("GitHub ограничил запрос или токен не имеет Contents: read.");
       if (response.status === 404) throw new Error(`Репозиторий ${normalized} не найден или недоступен этому токену.`);
+      if (response.status === 409 && message.toLowerCase().includes("git repository is empty")) {
+        throw new GitHubEmptyRepositoryError(normalized);
+      }
       
       throw new Error(`GitHub API (${response.status}): ${message}`);
     }
