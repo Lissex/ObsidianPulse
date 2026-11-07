@@ -32,7 +32,7 @@ export class DashboardView extends ItemView {
   constructor(leaf: WorkspaceLeaf, private plugin: VaultPulsePlugin) { super(leaf); this.planningPeriod = plugin.settings.planningDefaultPeriod; }
 
   getViewType(): string { return VIEW_TYPE; }
-  getDisplayText(): string { return "Vault Pulse"; }
+  getDisplayText(): string { return "VaultScope"; }
   getIcon(): string { return "activity"; }
 
   async onOpen(): Promise<void> { this.refresh(); }
@@ -87,7 +87,7 @@ export class DashboardView extends ItemView {
 
     const header = root.createDiv({ cls: "vp-header" });
     const heading = header.createDiv({ cls: "vp-heading" });
-    heading.createEl("h1", { text: "Vault Pulse" });
+    heading.createEl("h1", { text: "VaultScope" });
     const sectionDescriptions: Record<DashboardSection, string> = {
       overview: "Активность, заметки и структура хранилища.",
       day: "Задачи, события и ближайшие дела.",

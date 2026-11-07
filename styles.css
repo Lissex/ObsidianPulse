@@ -303,7 +303,8 @@ a.vp-learning-course-name:hover { color: var(--text-accent); text-decoration: un
 .vp-dashboard .vp-card-kicker { border: 1px solid var(--vp-border); }
 
 /* Settings control center */
-.vp-setting-content { --vp-settings-accent: var(--text-accent, var(--interactive-accent)); max-width: 1040px; margin: 0 auto; padding: 20px clamp(12px, 3vw, 28px) 32px; color: var(--text-normal); }
+.vp-settings-shell.setting-item { display: block; width: 100%; padding: 0; border: 0; background: transparent; }
+.vp-setting-content { --vp-settings-accent: var(--text-accent, var(--interactive-accent)); width: 100%; max-width: 1040px; box-sizing: border-box; margin: 0 auto; padding: 20px clamp(12px, 3vw, 28px) 32px; color: var(--text-normal); }
 .vp-settings-hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(270px, 390px); align-items: center; gap: 28px; min-height: 190px; margin: 4px 0 20px; padding: clamp(22px, 4vw, 38px); overflow: hidden; border: 1px solid var(--background-modifier-border); border-radius: 24px; background: radial-gradient(ellipse at 10% 0%, color-mix(in srgb, var(--vp-settings-accent) 18%, transparent), transparent 50%), linear-gradient(135deg, var(--background-secondary), var(--background-primary)); box-shadow: 0 18px 48px #00000012, inset 0 1px 0 #ffffff0b; }
 .vp-settings-hero::after { position: absolute; right: -80px; bottom: -160px; width: 320px; height: 320px; border: 1px solid color-mix(in srgb, var(--vp-settings-accent) 18%, transparent); border-radius: 50%; content: ""; pointer-events: none; }
 .vp-settings-hero-copy { position: relative; z-index: 1; max-width: 540px; }
@@ -409,6 +410,12 @@ a.vp-learning-course-name:hover { color: var(--text-accent); text-decoration: un
   .vp-dashboard { padding: 18px 13px; }
   .vp-grid { grid-template-columns: minmax(0, 1fr); }
   .vp-card, .vp-card-summary, .vp-card-activity { grid-column: 1 / -1; }
+  .vp-stat-row, .vp-planning-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vp-stat, .vp-daily-count { min-width: 0; overflow-wrap: anywhere; }
+  .vp-stat span, .vp-daily-count span { overflow-wrap: anywhere; }
+  .vp-header { min-width: 0; }
+  .vp-heading { min-width: 0; }
+  .vp-heading h1 { overflow-wrap: anywhere; }
   .vp-section-nav { display: flex; width: 100%; box-sizing: border-box; flex-wrap: wrap; overflow: visible; }
   .vp-section-tab { flex: 1 1 105px; }
   .vp-period-bar { align-items: flex-start; flex-wrap: wrap; }

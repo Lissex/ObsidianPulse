@@ -18,11 +18,13 @@ export class VaultPulseSettingTab extends PluginSettingTab {
         desc: "Внешний вид, тема Obsidianite, классическая тёмная тема, классическая светлая тема, стиль карточек, график, плотность, период, исключённые папки и теги, дневные заметки, формат даты, блоки дневника, задачи, сроки, приоритеты, расписание, рабочие часы, планы недели, месяца и года, шаблоны, обучение, Stepik, Udemy, GitHub, токен, репозитории, синхронизация, видимость и порядок панелей.",
         aliases: ["тема", "палитра", "цвет", "задача", "расписание", "дневник", "план", "курс", "коммит", "папка", "тег"],
         render: (setting) => {
-          setting.settingEl.hide();
-          const host = setting.settingEl.parentElement?.createDiv({ cls: "vp-setting-content" });
-          if (!host) return;
+          // The declarative renderer owns this Setting row. Render the custom
+          // settings interface inside it; its parent may not exist yet here.
+          setting.settingEl.empty();
+          setting.settingEl.addClass("vp-settings-shell");
+          const host = setting.settingEl.createDiv({ cls: "vp-setting-content" });
           this.renderSettings(host);
-          return () => host.remove();
+          return () => setting.settingEl.empty();
         },
       }],
     }];
